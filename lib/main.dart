@@ -1,0 +1,37 @@
+import 'package:flutter/material.dart';
+import 'core/theme/app_colors.dart';
+import 'features/auth/presentation/screens/otp_verification_screen.dart';
+
+void main() {
+  runApp(const BmsMobileApp());
+}
+
+/// Ứng dụng Di động BMS - Blood Laboratory Management System (Mobile Flutter).
+/// Dành cho Bệnh nhân, Bác sĩ & Kỹ thuật viên xét nghiệm.
+class BmsMobileApp extends StatelessWidget {
+  const BmsMobileApp({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      title: 'BMS Mobile App',
+      debugShowCheckedModeBanner: false,
+      theme: ThemeData(
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: AppColors.primary,
+          primary: AppColors.primary,
+          surface: AppColors.surface,
+          background: AppColors.background,
+        ),
+        scaffoldBackgroundColor: AppColors.background,
+        fontFamily: 'Roboto',
+        useMaterial3: true,
+      ),
+      home: const OtpVerificationScreen(
+        destination: 'benhnhan.nguyen@gmail.com',
+        purpose: 'PasswordReset',
+        channel: 'Email',
+      ),
+    );
+  }
+}
