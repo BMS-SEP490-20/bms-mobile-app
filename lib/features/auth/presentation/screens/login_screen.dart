@@ -3,6 +3,7 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/network/api_client.dart';
 import 'register_screen.dart';
 import 'change_password_screen.dart';
+import '../../dashboard/presentation/screens/role_dashboard_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -167,6 +168,19 @@ class _LoginScreenState extends State<LoginScreen> {
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                 child: Column(
                   children: [
+                    ListTile(
+                      leading: const Icon(Icons.dashboard_customize_outlined, color: AppColors.primary),
+                      title: const Text('Bảng điều khiển theo vai trò (UC12)', style: TextStyle(fontWeight: FontWeight.bold)),
+                      subtitle: const Text('Xem chỉ số KPI & báo cáo'),
+                      trailing: const Icon(Icons.chevron_right),
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (_) => const RoleDashboardScreen()),
+                        );
+                      },
+                    ),
+                    const Divider(height: 1),
                     ListTile(
                       leading: const Icon(Icons.lock_reset, color: AppColors.primary),
                       title: const Text('Đổi mật khẩu tài khoản (UC07)'),
