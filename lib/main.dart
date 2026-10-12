@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
 import 'core/theme/app_colors.dart';
 import 'features/auth/presentation/screens/login_screen.dart';
+import 'features/auth/presentation/screens/otp_verification_screen.dart';
 
 void main() {
   runApp(const BmsMobileApp());
 }
 
+/// BMS Mobile Application - Blood Laboratory Management System (Mobile Flutter).
+/// Client application for Patients, Clinicians, and Phlebotomists.
 class BmsMobileApp extends StatelessWidget {
   const BmsMobileApp({super.key});
 
@@ -26,6 +29,14 @@ class BmsMobileApp extends StatelessWidget {
         fontFamily: 'Roboto',
       ),
       home: const LoginScreen(),
+      routes: {
+        '/login': (context) => const LoginScreen(),
+        '/otp-verify': (context) => const OtpVerificationScreen(
+              destination: 'patient.johnson@gmail.com',
+              purpose: 'PasswordReset',
+              channel: 'Email',
+            ),
+      },
     );
   }
 }

@@ -3,7 +3,9 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/network/api_client.dart';
 import 'register_screen.dart';
 import 'change_password_screen.dart';
-import '../../dashboard/presentation/screens/role_dashboard_screen.dart';
+import 'otp_verification_screen.dart';
+import '../../../dashboard/presentation/screens/role_dashboard_screen.dart';
+import '../../../patient/presentation/screens/profile_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -39,7 +41,7 @@ class _LoginScreenState extends State<LoginScreen> {
       'password': _passwordController.text,
     };
 
-    final result = await ApiClient.post('/auth/login', payload);
+    await ApiClient.post('/auth/login', payload);
 
     setState(() {
       _isLoading = false;
@@ -194,6 +196,18 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                     const Divider(height: 1),
                     ListTile(
+                      leading: const Icon(Icons.badge_outlined, color: AppColors.primary),
+                      title: const Text('Hồ sơ bệnh nhân & Thẻ Kiosk QR (UC08)'),
+                      trailing: const Icon(Icons.chevron_right),
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (_) => const ProfileScreen()),
+                        );
+                      },
+                    ),
+                    const Divider(height: 1),
+                    ListTile(
                       leading: const Icon(Icons.qr_code, color: AppColors.success),
                       title: const Text('Mã QR Check-in tiếp đón'),
                       trailing: const Icon(Icons.chevron_right),
@@ -279,7 +293,25 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                     validator: (v) => (v == null || v.isEmpty) ? 'Vui lòng nhập mật khẩu' : null,
                   ),
-                  const SizedBox(height: 24),
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: TextButton(
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const OtpVerificationScreen(
+                              destination: 'patient.johnson@gmail.com',
+                              purpose: 'PasswordReset',
+                              channel: 'Email',
+                            ),
+                          ),
+                        );
+                      },
+                      child: const Text('Quên mật khẩu? (UC03)', style: TextStyle(color: AppColors.primary, fontSize: 13)),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
 
                   // Login Button
                   ElevatedButton(

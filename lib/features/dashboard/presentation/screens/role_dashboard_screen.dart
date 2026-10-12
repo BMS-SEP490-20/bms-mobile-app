@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/network/api_client.dart';
-import '../models/dashboard_stats_model.dart';
+import '../../models/dashboard_stats_model.dart';
 import '../../../auth/presentation/screens/change_password_screen.dart';
 
 class RoleDashboardScreen extends StatefulWidget {

@@ -49,7 +49,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
       'confirmPassword': _confirmPasswordController.text,
     };
 
-    final result = await ApiClient.post('/auth/register', payload);
+    await ApiClient.post('/auth/register', payload);
 
     setState(() => _isLoading = false);
 
