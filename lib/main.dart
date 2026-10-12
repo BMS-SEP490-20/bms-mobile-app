@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'core/theme/app_colors.dart';
+import 'features/auth/presentation/screens/login_screen.dart';
 import 'features/auth/presentation/screens/otp_verification_screen.dart';
 
 void main() {
@@ -17,20 +18,25 @@ class BmsMobileApp extends StatelessWidget {
       title: 'BMS Mobile App',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
+        useMaterial3: true,
         colorScheme: ColorScheme.fromSeed(
           seedColor: AppColors.primary,
           primary: AppColors.primary,
+          secondary: AppColors.secondary,
           surface: AppColors.surface,
         ),
         scaffoldBackgroundColor: AppColors.background,
         fontFamily: 'Roboto',
-        useMaterial3: true,
       ),
-      home: const OtpVerificationScreen(
-        destination: 'patient.johnson@gmail.com',
-        purpose: 'PasswordReset',
-        channel: 'Email',
-      ),
+      home: const LoginScreen(),
+      routes: {
+        '/login': (context) => const LoginScreen(),
+        '/otp-verify': (context) => const OtpVerificationScreen(
+              destination: 'patient.johnson@gmail.com',
+              purpose: 'PasswordReset',
+              channel: 'Email',
+            ),
+      },
     );
   }
 }

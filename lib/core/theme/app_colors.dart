@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 /// BMS Design System color tokens - Blood Laboratory Management System.
-/// Conforms to: AGENTS-DESIGN.md Rules 01-28 (Medical Blue Primary Color Palette).
+/// Conforms to: AGENTS-DESIGN.md Rules 01-28 (Medical Blue Primary Color Palette & Blood Red Accents).
 class AppColors {
   AppColors._();
 
@@ -11,7 +11,10 @@ class AppColors {
   static const Color primaryLight = Color(0xFFEFF6FF);
   static const Color primaryDark = Color(0xFF1E3A8A);
 
-  // Clinical Teal / Secondary
+  // Blood Red / Secondary Accent
+  static const Color secondary = Color(0xFFE11D48);
+
+  // Clinical Teal / Accent
   static const Color teal = Color(0xFF0EA5E9);
   static const Color tealLight = Color(0xFFE0F2FE);
 
