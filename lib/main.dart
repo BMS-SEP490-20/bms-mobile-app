@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'features/catalog/presentation/screens/service_catalog_screen.dart';
+import 'features/doctor-schedule/presentation/screens/doctor_schedule_screen.dart';
 
 /// Application entry point.
 void main() {
@@ -25,7 +26,7 @@ class BmsApp extends StatelessWidget {
       ),
       // UC01 – View Service Catalog is the home screen for now.
       // Other features will be added via routes / navigation later.
-      home: const ServiceCatalogScreen(),
+      home: const DoctorScheduleScreen(),
     );
   }
 }
