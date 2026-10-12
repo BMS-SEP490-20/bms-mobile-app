@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
-/// Hệ thống màu sắc nhận diện thương hiệu BMS - Blood Laboratory Management System.
-/// Tuân thủ: AGENTS-DESIGN.md Rules 01-28 (Medical Blue Primary Color Palette).
+/// BMS Design System color tokens - Blood Laboratory Management System.
+/// Conforms to: AGENTS-DESIGN.md Rules 01-28 (Medical Blue Primary Color Palette).
 class AppColors {
   AppColors._();
 

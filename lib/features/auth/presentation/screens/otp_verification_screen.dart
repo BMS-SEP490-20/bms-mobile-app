@@ -5,8 +5,8 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/mask_sensitive.dart';
 import '../widgets/otp_pin_field_group.dart';
 
-/// Màn hình xác thực mã OTP 2 lớp (2FA) bảo mật y tế chuyên biệt trên Mobile (UC03 / I1-013).
-/// Tuân thủ: AGENTS-DESIGN.md Rules 01-28 & AGENTS-CODE.md chuẩn Flutter Screen.
+/// Two-Factor Authentication (2FA) OTP Verification Screen for Mobile (UC03 / I1-013).
+/// Conforms to: AGENTS-DESIGN.md Rules 01-28 & Production Engineering Standards.
 class OtpVerificationScreen extends StatefulWidget {
   final String destination;
   final String purpose;
@@ -32,7 +32,7 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
   String? _errorMessage;
   String? _successMessage;
 
-  // Quản lý đếm ngược thời gian gửi lại (60s cooldown)
+  // 60-second resend cooldown management
   int _countdownSeconds = 60;
   Timer? _countdownTimer;
 
@@ -74,12 +74,12 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
     return '${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}';
   }
 
-  /// Gửi yêu cầu xác thực mã OTP
+  /// Submits the 6-digit OTP code to the backend for verification
   Future<void> _handleVerify([String? codeToVerify]) async {
     final otp = codeToVerify ?? _currentOtp;
     if (otp.length != 6) {
       setState(() {
-        _errorMessage = 'Vui lòng nhập đủ 6 chữ số mã xác thực.';
+        _errorMessage = 'Please enter all 6 digits of the verification code.';
       });
       return;
     }
@@ -103,7 +103,7 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
 
     if (result.isSuccess) {
       setState(() {
-        _successMessage = 'Xác thực OTP thành công!';
+        _successMessage = 'OTP code verified successfully!';
       });
 
       Future.delayed(const Duration(milliseconds: 600), () {
@@ -121,7 +121,7 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
     }
   }
 
-  /// Gửi lại mã OTP (Resend)
+  /// Requests a fresh OTP code (Resend) with 60-second cooldown protection
   Future<void> _handleResend() async {
     if (_countdownSeconds > 0 || _isResending) return;
 
@@ -170,7 +170,7 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
           onPressed: () => Navigator.of(context).pop(),
         ),
         title: const Text(
-          'Xác Thực Mã OTP',
+          'Verify OTP Code',
           style: TextStyle(
             color: Colors.white,
             fontSize: 18,
@@ -186,7 +186,7 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
             children: [
               const SizedBox(height: 10),
 
-              // Biểu tượng Khiên y tế bảo mật Medical Blue
+              // Medical Blue Security Shield Icon
               Container(
                 width: 76,
                 height: 76,
@@ -205,7 +205,7 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
               const SizedBox(height: 20),
 
               const Text(
-                'Nhập Mã Xác Nhận',
+                'Enter Verification Code',
                 style: TextStyle(
                   fontSize: 22,
                   fontWeight: FontWeight.bold,
@@ -216,7 +216,7 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
               const SizedBox(height: 8),
 
               Text(
-                'Mã xác thực 6 số đã được gửi tới ${widget.channel == 'Email' ? 'Email' : 'Số điện thoại'}:',
+                'A 6-digit verification code has been dispatched to your ${widget.channel == 'Email' ? 'email inbox' : 'phone number'}:',
                 textAlign: TextAlign.center,
                 style: const TextStyle(
                   fontSize: 14,
@@ -226,7 +226,7 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
 
               const SizedBox(height: 10),
 
-              // Huy hiệu hiển thị thông tin mask
+              // Masked recipient PII badge
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
                 decoration: BoxDecoration(
@@ -257,7 +257,7 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
 
               const SizedBox(height: 20),
 
-              // Thông báo lỗi nếu có
+              // Error banner if any
               if (_errorMessage != null)
                 Container(
                   width: double.infinity,
@@ -282,7 +282,7 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
                   ),
                 ),
 
-              // Thông báo thành công nếu có
+              // Success banner if any
               if (_successMessage != null && _errorMessage == null)
                 Container(
                   width: double.infinity,
@@ -307,7 +307,7 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
                   ),
                 ),
 
-              // Nhóm 6 ô số nhập PIN OTP
+              // 6-digit PIN input group
               OtpPinFieldGroup(
                 length: 6,
                 hasError: _errorMessage != null,
@@ -331,7 +331,7 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
                   Icon(Icons.access_time, size: 14, color: AppColors.textMuted),
                   SizedBox(width: 4),
                   Text(
-                    'Mã có hiệu lực trong vòng 5 phút',
+                    'Code remains valid for 5 minutes',
                     style: TextStyle(fontSize: 12, color: AppColors.textMuted),
                   ),
                 ],
@@ -339,7 +339,7 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
 
               const SizedBox(height: 28),
 
-              // Nút bấm Xác nhận
+              // Verification submit button
               SizedBox(
                 width: double.infinity,
                 height: 52,
@@ -347,17 +347,15 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
                   onPressed: (_currentOtp.length == 6 && !_isVerifying)
                       ? () => _handleVerify()
                       : null,
-                  style: ElevatedButton.overrideWith(
-                    ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.primary,
-                      foregroundColor: Colors.white,
-                      disabledBackgroundColor: AppColors.textDisabled,
-                      disabledForegroundColor: Colors.white70,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      elevation: 2,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                    foregroundColor: Colors.white,
+                    disabledBackgroundColor: AppColors.textDisabled,
+                    disabledForegroundColor: Colors.white70,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
                     ),
+                    elevation: 2,
                   ),
                   child: _isVerifying
                       ? const SizedBox(
@@ -369,7 +367,7 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
                           ),
                         )
                       : const Text(
-                          'Xác Nhận & Tiếp Tục',
+                          'Verify & Continue',
                           style: TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.bold,
@@ -380,12 +378,12 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
 
               const SizedBox(height: 24),
 
-              // Vùng gửi lại mã với Cooldown 60s
+              // Resend cooldown section
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   const Text(
-                    'Chưa nhận được mã? ',
+                    "Didn't receive the code? ",
                     style: TextStyle(fontSize: 14, color: AppColors.textSecondary),
                   ),
                   _isResending
@@ -403,8 +401,8 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
                           ),
                           child: Text(
                             _countdownSeconds > 0
-                                ? 'Gửi lại sau (${_formatCountdown(_countdownSeconds)})'
-                                : 'Gửi lại mã ngay',
+                                ? 'Resend in (${_formatCountdown(_countdownSeconds)})'
+                                : 'Resend code now',
                             style: TextStyle(
                               fontSize: 14,
                               fontWeight: FontWeight.bold,

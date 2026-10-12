@@ -3,10 +3,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../../../core/theme/app_colors.dart';
 
-/// Widget nhập mã PIN OTP 6 ô số độc lập đạt chuẩn Mobile UX y tế.
-/// Hỗ trợ tự động nhảy ô, phím xóa lùi, dán từ bộ nhớ tạm, phản hồi rung (Haptic Feedback),
-/// và hiệu ứng rung lắc (Shake Animation) khi nhập sai.
-/// Tuân thủ: AGENTS-DESIGN.md Rule 19 (Touch Target) & Rule 26 (Micro-animation).
+/// Production-grade 6-digit independent PIN input group for mobile medical workflows.
+/// Features: auto-advancing focus, backspace backward step, clipboard paste distribution,
+/// tactile Haptic Feedback, and horizontal Shake Animation upon verification error.
+/// Conforms to: AGENTS-DESIGN.md Rule 19 (Touch Target) & Rule 26 (Micro-animation).
 class OtpPinFieldGroup extends StatefulWidget {
   final int length;
   final ValueChanged<String> onChanged;
@@ -46,7 +46,7 @@ class _OtpPinFieldGroupState extends State<OtpPinFieldGroup>
       (_) => FocusNode(),
     );
 
-    // Cấu hình Animation rung lắc (Shake)
+    // Initialize Shake Animation Controller
     _shakeController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 400),
@@ -64,7 +64,7 @@ class _OtpPinFieldGroupState extends State<OtpPinFieldGroup>
   void didUpdateWidget(covariant OtpPinFieldGroup oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (widget.hasError && !oldWidget.hasError) {
-      // Kích hoạt phản hồi rung xúc giác mạnh và hiệu ứng lắc khi có lỗi
+      // Trigger heavy tactile haptic feedback and shake animation upon error
       HapticFeedback.heavyImpact();
       _shakeController.forward(from: 0.0);
     }
@@ -88,10 +88,10 @@ class _OtpPinFieldGroupState extends State<OtpPinFieldGroup>
 
   void _onDigitChanged(int index, String value) {
     if (value.isNotEmpty) {
-      // Phản hồi rung xúc giác nhẹ khi bấm số
+      // Light tactile haptic feedback on digit press
       HapticFeedback.lightImpact();
 
-      // Nếu người dùng dán (paste) nhiều hơn 1 ký tự
+      // If user pasted multiple characters
       if (value.length > 1) {
         final digits = value.replaceAll(RegExp(r'\D'), '');
         for (int i = 0; i < widget.length; i++) {
@@ -107,7 +107,7 @@ class _OtpPinFieldGroupState extends State<OtpPinFieldGroup>
         return;
       }
 
-      // Nhập 1 số bình thường -> nhảy sang ô kế tiếp
+      // Single digit entry: move focus to next box
       if (index < widget.length - 1) {
         _focusNodes[index + 1].requestFocus();
       } else {
@@ -128,7 +128,7 @@ class _OtpPinFieldGroupState extends State<OtpPinFieldGroup>
     return AnimatedBuilder(
       animation: _shakeAnimation,
       builder: (context, child) {
-        // Hàm tính độ lệch Shake: sin dao động 4 chu kỳ
+        // Compute 4-cycle sine wave shake offset
         final offset = sin(_shakeAnimation.value * pi * 4) * 8.0;
         return Transform.translate(
           offset: Offset(offset, 0),
@@ -166,7 +166,7 @@ class _OtpPinFieldGroupState extends State<OtpPinFieldGroup>
               ],
             ),
             child: RawKeyboardListener(
-              focusNode: FocusNode(), // Node phụ bắt sự kiện Backspace
+              focusNode: FocusNode(), // Auxiliary node capturing Backspace key on empty boxes
               onKey: (event) {
                 if (event is RawKeyDownEvent &&
                     event.logicalKey == LogicalKeyboardKey.backspace) {

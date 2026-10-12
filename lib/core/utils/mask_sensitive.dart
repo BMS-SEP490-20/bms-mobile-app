@@ -1,9 +1,9 @@
-/// Tiện ích che mờ thông tin cá nhân (PII) như Email và Số điện thoại trên Mobile App.
-/// Tuân thủ: NIST SP 800-63B & AGENTS-DESIGN.md Rule 22.
+/// Utility functions for masking Personally Identifiable Information (PII) on mobile devices.
+/// Conforms to: NIST SP 800-63B & AGENTS-DESIGN.md Rule 22.
 class MaskSensitive {
   MaskSensitive._();
 
-  /// Che địa chỉ email: "tanphat@gmail.com" -> "t***t@gmail.com"
+  /// Masks an email address: "tanphat@gmail.com" -> "t***t@gmail.com"
   static String maskEmail(String email) {
     if (email.isEmpty) return '';
     final parts = email.split('@');
@@ -21,7 +21,7 @@ class MaskSensitive {
     return '$first***$last@$domain';
   }
 
-  /// Che số điện thoại: "0901234567" -> "090****567"
+  /// Masks a telephone number: "0901234567" -> "090****567"
   static String maskPhone(String phone) {
     if (phone.isEmpty) return '';
     final cleaned = phone.replaceAll(RegExp(r'\s+'), '');
@@ -32,7 +32,7 @@ class MaskSensitive {
     return '$prefix****$suffix';
   }
 
-  /// Tự động nhận diện Email hoặc Số điện thoại để áp dụng mặt nạ phù hợp.
+  /// Automatically detects whether the destination is an email or phone number and masks it.
   static String maskDestination(String destination) {
     if (destination.contains('@')) {
       return maskEmail(destination);

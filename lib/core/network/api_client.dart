@@ -1,7 +1,7 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 
-/// Kết quả phản hồi từ API gửi OTP
+/// Data model representing the response from the Send OTP API.
 class SendOtpResult {
   final bool isSuccess;
   final String message;
@@ -16,7 +16,7 @@ class SendOtpResult {
   });
 }
 
-/// Kết quả phản hồi từ API xác thực OTP
+/// Data model representing the response from the Verify OTP API.
 class VerifyOtpResult {
   final bool isSuccess;
   final String message;
@@ -29,12 +29,12 @@ class VerifyOtpResult {
   });
 }
 
-/// HTTP Client giao tiếp với Backend .NET Web API của hệ thống BMS.
-/// Hỗ trợ xử lý mã lỗi RFC 7807 (429 Rate Limit, 400 Bad Request) và cơ chế Mock an toàn khi dev offline.
+/// HTTP Network Client communicating with the BMS Backend Web API (.NET).
+/// Supports RFC 7807 problem details (429 Rate Limit, 400 Bad Request) and resilient mock fallback for offline dev/test.
 class ApiClient {
-  static const String baseUrl = 'http://10.0.2.2:5000/api'; // Android Emulator default; thay bằng localhost khi test Web/Windows
+  static const String baseUrl = 'http://10.0.2.2:5000/api'; // Android Emulator default; use localhost when testing Web/Desktop
 
-  /// Gửi yêu cầu sinh và phát tán mã xác thực OTP
+  /// Dispatches a request to generate and send an OTP code via Email or SMS.
   static Future<SendOtpResult> sendOtp({
     required String destination,
     String purpose = 'PasswordReset',
@@ -61,33 +61,33 @@ class ApiClient {
       if (response.statusCode == 200) {
         return SendOtpResult(
           isSuccess: true,
-          message: data['message'] ?? 'Mã xác thực OTP đã được gửi thành công.',
+          message: data['message'] ?? 'OTP verification code has been dispatched successfully.',
           cooldownSeconds: data['cooldownSeconds'] ?? 60,
         );
       } else if (response.statusCode == 429) {
         return SendOtpResult(
           isSuccess: false,
           isRateLimited: true,
-          message: data['message'] ?? 'Bạn đã yêu cầu gửi mã quá nhiều lần. Vui lòng thử lại sau 5 phút.',
+          message: data['message'] ?? 'Too many requests. Please wait 5 minutes before trying again.',
           cooldownSeconds: 300,
         );
       } else {
         return SendOtpResult(
           isSuccess: false,
-          message: data['message'] ?? 'Không thể gửi mã OTP. Vui lòng kiểm tra lại thông tin.',
+          message: data['message'] ?? 'Unable to send OTP code. Please check your information.',
         );
       }
     } catch (e) {
-      // Cơ chế Mock Fallback khi backend offline để đảm bảo mobile app luôn test được
+      // Offline fallback: allows seamless offline mobile testing
       return SendOtpResult(
         isSuccess: true,
-        message: '[MOCK TEST] Mã OTP thử nghiệm (123456) đã gửi tới $destination.',
+        message: '[MOCK TEST] Demo OTP code (123456) dispatched to $destination.',
         cooldownSeconds: 60,
       );
     }
   }
 
-  /// Xác thực mã OTP 6 chữ số
+  /// Verifies a 6-digit OTP code submitted by the user.
   static Future<VerifyOtpResult> verifyOtp({
     required String destination,
     required String otp,
@@ -96,7 +96,7 @@ class ApiClient {
     if (otp.length != 6) {
       return VerifyOtpResult(
         isSuccess: false,
-        message: 'Mã xác thực phải bao gồm đúng 6 chữ số.',
+        message: 'Verification code must be exactly 6 numeric digits.',
       );
     }
 
@@ -121,27 +121,27 @@ class ApiClient {
       if (response.statusCode == 200) {
         return VerifyOtpResult(
           isSuccess: true,
-          message: data['message'] ?? 'Xác thực mã OTP thành công!',
+          message: data['message'] ?? 'OTP verified successfully!',
           verificationToken: data['verificationToken'] ?? 'mock-token',
         );
       } else {
         return VerifyOtpResult(
           isSuccess: false,
-          message: data['message'] ?? 'Mã OTP không chính xác hoặc đã hết hạn.',
+          message: data['message'] ?? 'Incorrect or expired OTP code.',
         );
       }
     } catch (e) {
-      // Mock Fallback: chấp nhận mã "123456" khi dev offline
+      // Offline mock fallback: accepts demo code "123456"
       if (otp.trim() == '123456') {
         return VerifyOtpResult(
           isSuccess: true,
-          message: '[MOCK TEST] Xác thực OTP thành công!',
+          message: '[MOCK TEST] OTP verified successfully!',
           verificationToken: 'mock-verification-token-123456',
         );
       }
       return VerifyOtpResult(
         isSuccess: false,
-        message: 'Mã OTP không chính xác. (Gợi ý mã Mock: 123456)',
+        message: 'Invalid OTP code. (Hint for offline test: 123456)',
       );
     }
   }

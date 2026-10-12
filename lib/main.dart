@@ -6,8 +6,8 @@ void main() {
   runApp(const BmsMobileApp());
 }
 
-/// Ứng dụng Di động BMS - Blood Laboratory Management System (Mobile Flutter).
-/// Dành cho Bệnh nhân, Bác sĩ & Kỹ thuật viên xét nghiệm.
+/// BMS Mobile Application - Blood Laboratory Management System (Mobile Flutter).
+/// Client application for Patients, Clinicians, and Phlebotomists.
 class BmsMobileApp extends StatelessWidget {
   const BmsMobileApp({super.key});
 
@@ -28,7 +28,7 @@ class BmsMobileApp extends StatelessWidget {
         useMaterial3: true,
       ),
       home: const OtpVerificationScreen(
-        destination: 'benhnhan.nguyen@gmail.com',
+        destination: 'patient.johnson@gmail.com',
         purpose: 'PasswordReset',
         channel: 'Email',
       ),
