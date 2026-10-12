@@ -1,7 +1,7 @@
-
 import 'package:flutter/material.dart';
 import 'package:bms_mobile_app/services/bms_auth.dart';
-//aa//
+import 'forgot_password_screen.dart';
+
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
 
@@ -314,13 +314,10 @@ class _LoginScreenState extends State<LoginScreen> {
                           ),
                           TextButton(
                             onPressed: () {
-                              ScaffoldMessenger.of(context)
-                                  .showSnackBar(
-                                const SnackBar(
-                                  content: Text(
-                                    'Vui lòng liên hệ quản trị viên '
-                                        'để đặt lại mật khẩu.',
-                                  ),
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => ForgotPasswordScreen(),
                                 ),
                               );
                             },

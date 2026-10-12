@@ -76,6 +76,69 @@ class BmsAuth {
     }
   }
 
+
+  static Future<Map<String, dynamic>> sendPasswordRecoveryOtp({
+    required String email,
+  }) async {
+    final uri = Uri.parse(
+      '$apiBaseUrl/api/auth/forgot-password',
+    );
+
+    try {
+      print('OTP API URL: $uri');
+      print('OTP request body: ${jsonEncode({
+        'email': email.trim(),
+      })}');
+
+      final response = await http
+          .post(
+        uri,
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
+        body: jsonEncode({
+          'email': email.trim(),
+        }),
+      )
+          .timeout(const Duration(seconds: 20));
+
+      print('OTP status: ${response.statusCode}');
+      print('OTP response: ${response.body}');
+
+      Map<String, dynamic> data = {};
+
+      try {
+        final decoded = jsonDecode(response.body);
+        if (decoded is Map<String, dynamic>) {
+          data = decoded;
+        }
+      } catch (_) {}
+
+      if (response.statusCode >= 200 &&
+          response.statusCode < 300) {
+        return {
+          'success': true,
+          'message': data['message'] ??
+              'Yêu cầu gửi OTP đã được tiếp nhận.',
+        };
+      }
+
+      return {
+        'success': false,
+        'message': data['message'] ??
+            data['title'] ??
+            'Gửi OTP thất bại (${response.statusCode}).',
+      };
+    } catch (e) {
+      print('OTP exception: $e');
+
+      return {
+        'success': false,
+        'message': 'Không thể kết nối API gửi OTP: $e',
+      };
+    }
+  }
   static void logout() {
     accessToken = null;
     refreshToken = null;
