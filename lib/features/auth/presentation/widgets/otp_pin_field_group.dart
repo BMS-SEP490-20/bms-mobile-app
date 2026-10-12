@@ -159,16 +159,16 @@ class _OtpPinFieldGroupState extends State<OtpPinFieldGroup>
               ),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.04),
+                  color: Colors.black.withValues(alpha: 0.04),
                   blurRadius: 4,
                   offset: const Offset(0, 2),
                 ),
               ],
             ),
-            child: RawKeyboardListener(
+            child: KeyboardListener(
               focusNode: FocusNode(), // Auxiliary node capturing Backspace key on empty boxes
-              onKey: (event) {
-                if (event is RawKeyDownEvent &&
+              onKeyEvent: (event) {
+                if (event is KeyDownEvent &&
                     event.logicalKey == LogicalKeyboardKey.backspace) {
                   if (_controllers[index].text.isEmpty && index > 0) {
                     _controllers[index - 1].clear();

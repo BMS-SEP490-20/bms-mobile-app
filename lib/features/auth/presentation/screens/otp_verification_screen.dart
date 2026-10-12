@@ -193,7 +193,7 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
                 decoration: BoxDecoration(
                   color: AppColors.primaryLight,
                   shape: BoxShape.circle,
-                  border: Border.all(color: AppColors.primary.withOpacity(0.2), width: 2),
+                  border: Border.all(color: AppColors.primary.withValues(alpha: 0.2), width: 2),
                 ),
                 child: const Icon(
                   Icons.shield_outlined,
@@ -266,7 +266,7 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
                   decoration: BoxDecoration(
                     color: AppColors.dangerLight,
                     borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: AppColors.danger.withOpacity(0.3)),
+                    border: Border.all(color: AppColors.danger.withValues(alpha: 0.3)),
                   ),
                   child: Row(
                     children: [
@@ -291,7 +291,7 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
                   decoration: BoxDecoration(
                     color: AppColors.successLight,
                     borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: AppColors.success.withOpacity(0.3)),
+                    border: Border.all(color: AppColors.success.withValues(alpha: 0.3)),
                   ),
                   child: Row(
                     children: [
