@@ -1,22 +1,26 @@
+
 name: bms_mobile_app
-description: BMS – Blood Management & Testing System mobile app (Flutter).
+description: "Blood Laboratory Management System Mobile Application (Flutter)"
 publish_to: 'none'
+
 version: 1.0.0+1
 
 environment:
-  sdk: '>=3.0.0 <4.0.0'
+  sdk: ^3.12.2
 
 dependencies:
   flutter:
     sdk: flutter
-  http: ^1.2.0
-  intl: ^0.19.0
+
   cupertino_icons: ^1.0.8
+  http: ^1.5.0
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
-  flutter_lints: ^4.0.0
+
+  flutter_lints: ^6.0.0
 
 flutter:
   uses-material-design: true
+
