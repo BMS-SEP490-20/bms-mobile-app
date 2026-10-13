@@ -2,6 +2,8 @@
 import 'package:flutter/material.dart';
 
 import 'core/theme/app_colors.dart';
+import 'features/catalog/presentation/screens/service_catalog_screen.dart';
+import 'features/doctor-schedule/presentation/screens/doctor_schedule_screen.dart';
 import 'features/auth/presentation/screens/login_screen.dart';
 import 'features/auth/presentation/screens/patient_home_screen.dart';
 import 'features/auth/presentation/screens/otp_verification_screen.dart';
@@ -42,6 +44,8 @@ class BmsMobileApp extends StatelessWidget {
               purpose: 'PasswordReset',
               channel: 'Email',
             ),
+        '/service-catalog': (context) => const ServiceCatalogScreen(),
+        '/doctor-schedule': (context) => const DoctorScheduleScreen(),
       },
     );
   }
