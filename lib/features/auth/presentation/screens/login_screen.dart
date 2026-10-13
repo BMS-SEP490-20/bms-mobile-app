@@ -1,6 +1,13 @@
+
 import 'package:flutter/material.dart';
 import 'package:bms_mobile_app/services/bms_auth.dart';
+
+import '../../../../core/theme/app_colors.dart';
 import 'forgot_password_screen.dart';
+import 'register_screen.dart';
+import 'change_password_screen.dart';
+import '../../../dashboard/presentation/screens/role_dashboard_screen.dart';
+import '../../../patient/presentation/screens/profile_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -17,14 +24,17 @@ class _LoginScreenState extends State<LoginScreen> {
   final formKey = GlobalKey<FormState>();
 
   final usernameController =
-  TextEditingController(text: 'dr_nguyenminh');
+      TextEditingController(text: 'patient');
 
   final passwordController =
-  TextEditingController(text: 'Admin@123');
+      TextEditingController(text: 'Patient@123');
 
   bool obscurePassword = true;
   bool isLoading = false;
   bool rememberMe = false;
+  bool isLoggedIn = false;
+
+  String currentUser = 'Bệnh nhân BMS';
   String? errorMessage;
 
   @override
@@ -34,11 +44,12 @@ class _LoginScreenState extends State<LoginScreen> {
     super.dispose();
   }
 
-
   Future<void> handleLogin() async {
     FocusScope.of(context).unfocus();
 
-    if (!formKey.currentState!.validate()) return;
+    if (!formKey.currentState!.validate()) {
+      return;
+    }
 
     setState(() {
       isLoading = true;
@@ -53,15 +64,36 @@ class _LoginScreenState extends State<LoginScreen> {
 
       if (!mounted) return;
 
-      setState(() => isLoading = false);
-
       if (result['success'] == true) {
-        // Đóng LoginScreen và báo MainScreen chuyển sang Home.
-        Navigator.pop(context, true);
+        setState(() {
+          isLoading = false;
+          isLoggedIn = true;
+
+          // Thay tên hiển thị nếu response backend có thông tin người dùng.
+          final user = result['user'];
+          if (user is Map) {
+            currentUser =
+                (user['fullName'] ??
+                        user['full_name'] ??
+                        user['username'] ??
+                        user['email'] ??
+                        currentUser)
+                    .toString();
+          }
+        });
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Đăng nhập thành công!'),
+            backgroundColor: AppColors.success,
+          ),
+        );
       } else {
         setState(() {
+          isLoading = false;
           errorMessage =
-              result['message']?.toString() ?? 'Đăng nhập thất bại.';
+              result['message']?.toString() ??
+              'Tên đăng nhập hoặc mật khẩu không chính xác.';
         });
       }
     } catch (e) {
@@ -69,7 +101,8 @@ class _LoginScreenState extends State<LoginScreen> {
 
       setState(() {
         isLoading = false;
-        errorMessage = 'Không thể kết nối máy chủ. Vui lòng thử lại.';
+        errorMessage =
+            'Không thể kết nối máy chủ. Vui lòng kiểm tra kết nối và thử lại.';
       });
     }
   }
@@ -110,23 +143,274 @@ class _LoginScreenState extends State<LoginScreen> {
           width: 1.5,
         ),
       ),
+      errorBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: const BorderSide(
+          color: Colors.red,
+        ),
+      ),
+      focusedErrorBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: const BorderSide(
+          color: Colors.red,
+          width: 1.5,
+        ),
+      ),
     );
   }
 
-  @override
-  Widget build(BuildContext context) {
+  void handleLogout() {
+    showDialog(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+        ),
+        title: const Row(
+          children: [
+            Icon(Icons.logout, color: AppColors.danger),
+            SizedBox(width: 8),
+            Expanded(child: Text('Đăng xuất')),
+          ],
+        ),
+        content: const Text(
+          'Bạn có chắc chắn muốn đăng xuất khỏi tài khoản trên thiết bị này?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Hủy'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.danger,
+              foregroundColor: Colors.white,
+            ),
+            onPressed: () async {
+              Navigator.pop(dialogContext);
+
+              // Xóa session/token thông qua service xác thực.
+              await BmsAuth.logout();
+
+              if (!mounted) return;
+
+              setState(() {
+                isLoggedIn = false;
+                passwordController.clear();
+                errorMessage = null;
+              });
+
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Đã đăng xuất thành công.'),
+                  backgroundColor: AppColors.primary,
+                ),
+              );
+            },
+            child: const Text('Đăng xuất'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget buildDashboard() {
+    return Scaffold(
+      backgroundColor: AppColors.background,
+      appBar: AppBar(
+        title: const Text(
+          'BMS Patient Portal',
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
+        backgroundColor: AppColors.surface,
+        foregroundColor: AppColors.textPrimary,
+        elevation: 0,
+        actions: [
+          IconButton(
+            icon: const Icon(
+              Icons.logout,
+              color: AppColors.danger,
+            ),
+            tooltip: 'Đăng xuất',
+            onPressed: handleLogout,
+          ),
+        ],
+      ),
+      body: SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Card(
+                elevation: 0,
+                color: AppColors.surface,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.all(20),
+                  child: Row(
+                    children: [
+                      const CircleAvatar(
+                        radius: 28,
+                        backgroundColor: AppColors.primary,
+                        child: Icon(
+                          Icons.person,
+                          size: 32,
+                          color: Colors.white,
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              currentUser,
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 18,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            const Text(
+                              'Vai trò: Bệnh nhân (Patient)',
+                              style: TextStyle(
+                                color: AppColors.textSecondary,
+                                fontSize: 13,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 20),
+              Card(
+                elevation: 0,
+                color: AppColors.surface,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Column(
+                  children: [
+                    ListTile(
+                      leading: const Icon(
+                        Icons.dashboard_customize_outlined,
+                        color: AppColors.primary,
+                      ),
+                      title: const Text(
+                        'Bảng điều khiển',
+                        style: TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                      subtitle: const Text('Xem chỉ số KPI và báo cáo'),
+                      trailing: const Icon(Icons.chevron_right),
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) =>
+                                const RoleDashboardScreen(),
+                          ),
+                        );
+                      },
+                    ),
+                    const Divider(height: 1),
+                    ListTile(
+                      leading: const Icon(
+                        Icons.lock_reset,
+                        color: AppColors.primary,
+                      ),
+                      title: const Text('Đổi mật khẩu'),
+                      trailing: const Icon(Icons.chevron_right),
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) =>
+                                const ChangePasswordScreen(),
+                          ),
+                        );
+                      },
+                    ),
+                    const Divider(height: 1),
+                    ListTile(
+                      leading: const Icon(
+                        Icons.badge_outlined,
+                        color: AppColors.primary,
+                      ),
+                      title: const Text('Hồ sơ bệnh nhân'),
+                      subtitle: const Text('Thông tin cá nhân và thẻ QR'),
+                      trailing: const Icon(Icons.chevron_right),
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const ProfileScreen(),
+                          ),
+                        );
+                      },
+                    ),
+                    const Divider(height: 1),
+                    ListTile(
+                      leading: const Icon(
+                        Icons.qr_code,
+                        color: AppColors.success,
+                      ),
+                      title: const Text('QR Check-in'),
+                      subtitle: const Text(
+                        'Mã check-in tiếp đón bệnh nhân',
+                      ),
+                      trailing: const Icon(Icons.chevron_right),
+                      onTap: () {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text(
+                              'Chức năng QR Check-in chưa được triển khai.',
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                    const Divider(height: 1),
+                    ListTile(
+                      leading: const Icon(
+                        Icons.logout,
+                        color: AppColors.danger,
+                      ),
+                      title: const Text(
+                        'Đăng xuất',
+                        style: TextStyle(color: AppColors.danger),
+                      ),
+                      trailing: const Icon(
+                        Icons.chevron_right,
+                        color: AppColors.danger,
+                      ),
+                      onTap: handleLogout,
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget buildLoginForm() {
     return Scaffold(
       backgroundColor: const Color(0xFFF5F7FB),
       body: SafeArea(
         child: SingleChildScrollView(
           child: Column(
             children: [
-              // Header
               Container(
                 width: double.infinity,
-                padding: const EdgeInsets.fromLTRB(
-                  24, 20, 24, 38,
-                ),
+                padding: const EdgeInsets.fromLTRB(24, 20, 24, 38),
                 decoration: const BoxDecoration(
                   gradient: LinearGradient(
                     begin: Alignment.topLeft,
@@ -145,7 +429,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     Align(
                       alignment: Alignment.centerLeft,
                       child: IconButton(
-                        onPressed: () => Navigator.pop(context),
+                        onPressed: () => Navigator.maybePop(context),
                         icon: const Icon(
                           Icons.arrow_back_rounded,
                           color: Colors.white,
@@ -192,12 +476,8 @@ class _LoginScreenState extends State<LoginScreen> {
                   ],
                 ),
               ),
-
-              // Login form
               Padding(
-                padding: const EdgeInsets.fromLTRB(
-                  24, 28, 24, 32,
-                ),
+                padding: const EdgeInsets.fromLTRB(24, 28, 24, 32),
                 child: Form(
                   key: formKey,
                   child: Column(
@@ -220,7 +500,6 @@ class _LoginScreenState extends State<LoginScreen> {
                         ),
                       ),
                       const SizedBox(height: 26),
-
                       const Text(
                         'Email hoặc tên đăng nhập',
                         style: TextStyle(
@@ -240,16 +519,13 @@ class _LoginScreenState extends State<LoginScreen> {
                           icon: Icons.person_outline_rounded,
                         ),
                         validator: (value) {
-                          if (value == null ||
-                              value.trim().isEmpty) {
+                          if (value == null || value.trim().isEmpty) {
                             return 'Vui lòng nhập tài khoản.';
                           }
                           return null;
                         },
                       ),
-
                       const SizedBox(height: 20),
-
                       const Text(
                         'Mật khẩu',
                         style: TextStyle(
@@ -289,9 +565,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           return null;
                         },
                       ),
-
                       const SizedBox(height: 8),
-
                       Row(
                         children: [
                           Checkbox(
@@ -317,7 +591,8 @@ class _LoginScreenState extends State<LoginScreen> {
                               Navigator.push(
                                 context,
                                 MaterialPageRoute(
-                                  builder: (_) => ForgotPasswordScreen(),
+                                  builder: (_) =>
+                                      ForgotPasswordScreen(),
                                 ),
                               );
                             },
@@ -331,7 +606,6 @@ class _LoginScreenState extends State<LoginScreen> {
                           ),
                         ],
                       ),
-
                       if (errorMessage != null) ...[
                         const SizedBox(height: 8),
                         Container(
@@ -353,29 +627,26 @@ class _LoginScreenState extends State<LoginScreen> {
                           ),
                         ),
                       ],
-
                       const SizedBox(height: 22),
-
                       SizedBox(
                         width: double.infinity,
                         height: 50,
                         child: FilledButton.icon(
-                          onPressed:
-                          isLoading ? null : handleLogin,
+                          onPressed: isLoading ? null : handleLogin,
                           icon: isLoading
                               ? const SizedBox(
-                            width: 19,
-                            height: 19,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              color: Colors.white,
-                            ),
-                          )
+                                  width: 19,
+                                  height: 19,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: Colors.white,
+                                  ),
+                                )
                               : const Icon(Icons.login_rounded),
                           label: Text(
                             isLoading
                                 ? 'Đang đăng nhập...'
-                                : 'Sign in',
+                                : 'Đăng nhập',
                           ),
                           style: FilledButton.styleFrom(
                             backgroundColor: blue,
@@ -386,9 +657,33 @@ class _LoginScreenState extends State<LoginScreen> {
                           ),
                         ),
                       ),
-
                       const SizedBox(height: 24),
-
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Text(
+                            'Chưa có tài khoản? ',
+                            style: TextStyle(color: muted),
+                          ),
+                          TextButton(
+                            onPressed: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => const RegisterScreen(),
+                                ),
+                              );
+                            },
+                            child: const Text(
+                              'Đăng ký ngay',
+                              style: TextStyle(
+                                color: blue,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
                       const Center(
                         child: Text(
                           'BMS Health · Secure Login',
@@ -408,4 +703,10 @@ class _LoginScreenState extends State<LoginScreen> {
       ),
     );
   }
+
+  @override
+  Widget build(BuildContext context) {
+    return isLoggedIn ? buildDashboard() : buildLoginForm();
+  }
 }
+

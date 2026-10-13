@@ -1,14 +1,17 @@
 
 import 'package:flutter/material.dart';
+
+import 'core/theme/app_colors.dart';
 import 'features/auth/presentation/screens/login_screen.dart';
 import 'features/auth/presentation/screens/patient_home_screen.dart';
+import 'features/auth/presentation/screens/otp_verification_screen.dart';
 
 void main() {
-  runApp(const BmsPatientApp());
+  runApp(const BmsMobileApp());
 }
 
-class BmsPatientApp extends StatelessWidget {
-  const BmsPatientApp({super.key});
+class BmsMobileApp extends StatelessWidget {
+  const BmsMobileApp({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -17,12 +20,29 @@ class BmsPatientApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         useMaterial3: true,
-        scaffoldBackgroundColor: const Color(0xFFF5F7FB),
         colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color(0xFF0353E9),
+          seedColor: AppColors.primary,
+          primary: AppColors.primary,
+          secondary: AppColors.secondary,
+          surface: AppColors.surface,
         ),
+        scaffoldBackgroundColor: const Color(0xFFF5F7FB),
+        fontFamily: 'Roboto',
       ),
+
+      // Màn hình giới thiệu BMS và nút đăng nhập.
       home: const MainScreen(),
+
+      // Các route dùng chung trong ứng dụng.
+      routes: {
+        '/login': (context) => const LoginScreen(),
+        '/patient-home': (context) => const PatientHomeScreen(),
+        '/otp-verify': (context) => const OtpVerificationScreen(
+              destination: 'patient.johnson@gmail.com',
+              purpose: 'PasswordReset',
+              channel: 'Email',
+            ),
+      },
     );
   }
 }
@@ -58,7 +78,9 @@ class MainScreen extends StatelessWidget {
               const Text(
                 'Blood Laboratory Management System',
                 textAlign: TextAlign.center,
-                style: TextStyle(color: Color(0xFF64748B)),
+                style: TextStyle(
+                  color: Color(0xFF64748B),
+                ),
               ),
               const SizedBox(height: 32),
               SizedBox(
@@ -93,3 +115,4 @@ class MainScreen extends StatelessWidget {
     );
   }
 }
+
