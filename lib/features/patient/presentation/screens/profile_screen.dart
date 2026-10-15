@@ -117,9 +117,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ),
               _buildDivider(),
               _buildActionRow(
-                'Change Account Password',
-                'Updated 3 months ago',
+                'Change Account Password / Update Info',
+                'Update credentials & email',
                 Icons.lock_reset,
+                onTap: () {
+                  Navigator.pushNamed(context, '/update-account');
+                },
               ),
             ]),
 
@@ -347,9 +350,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
     String subtitle,
     IconData icon, {
     Color? badgeColor,
+    VoidCallback? onTap,
   }) {
     return InkWell(
-      onTap: () => HapticFeedback.lightImpact(),
+      onTap: () {
+        HapticFeedback.lightImpact();
+        if (onTap != null) {
+          onTap();
+        }
+      },
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: 10),
         child: Row(

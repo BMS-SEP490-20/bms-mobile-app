@@ -1,3 +1,15 @@
+# Web artifacts mistakenly committed to Flutter
+node_modules/
+package.json
+package-lock.json
+App.jsx
+*.log
+
+# IDE & Editor files
+.idea/
+.vscode/
+*.iml
+
 # Miscellaneous
 *.class
 *.lock

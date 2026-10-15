@@ -1,5 +1,7 @@
 
 import 'package:flutter/material.dart';
+import '../../../catalog/presentation/screens/service_catalog_screen.dart';
+import '../../../patient/presentation/screens/profile_screen.dart';
 
 class PatientHomeScreen extends StatefulWidget {
   const PatientHomeScreen({super.key});
@@ -12,7 +14,6 @@ class _PatientHomeScreenState extends State<PatientHomeScreen> {
   static const navy = Color(0xFF0F2743);
   static const navyLight = Color(0xFF1E1B4B);
   static const blue = Color(0xFF0353E9);
-  static const brand = Color(0xFF0F9F78);
   static const background = Color(0xFFF5F7FB);
   static const muted = Color(0xFF64748B);
   static const border = Color(0xFFE2E8F0);
@@ -39,8 +40,8 @@ class _PatientHomeScreenState extends State<PatientHomeScreen> {
   void onTabSelected(int index) {
     setState(() => selectedIndex = index);
 
-    if (index != 0) {
-      showMessage('${tabs[index]} screen chưa được triển khai.');
+    if (index == 2 || index == 3) {
+      showMessage('${tabs[index]} screen đang được phát triển.');
     }
   }
 
@@ -54,10 +55,10 @@ class _PatientHomeScreenState extends State<PatientHomeScreen> {
           index: selectedIndex,
           children: [
             buildHomeContent(),
-            buildPlaceholder('Blood test services', Icons.search),
+            const ServiceCatalogScreen(),
             buildPlaceholder('My appointments', Icons.calendar_month),
             buildPlaceholder('My results', Icons.description_outlined),
-            buildPlaceholder('My profile', Icons.person_outline),
+            const ProfileScreen(),
           ],
         ),
       ),

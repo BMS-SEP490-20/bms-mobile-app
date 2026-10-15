@@ -7,6 +7,7 @@ import 'features/doctor-schedule/presentation/screens/doctor_schedule_screen.dar
 import 'features/auth/presentation/screens/login_screen.dart';
 import 'features/auth/presentation/screens/patient_home_screen.dart';
 import 'features/auth/presentation/screens/otp_verification_screen.dart';
+import 'features/patient/presentation/screens/update_account_screen.dart';
 
 void main() {
   runApp(const BmsMobileApp());
@@ -46,6 +47,7 @@ class BmsMobileApp extends StatelessWidget {
             ),
         '/service-catalog': (context) => const ServiceCatalogScreen(),
         '/doctor-schedule': (context) => const DoctorScheduleScreen(),
+        '/update-account': (context) => const UpdateAccountScreen(),
       },
     );
   }
