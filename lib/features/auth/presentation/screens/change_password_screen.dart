@@ -2,6 +2,12 @@ import 'package:flutter/material.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/network/api_client.dart';
 
+/// Screen allowing authenticated users to change their password (UC07).
+/// Enforces business constraints:
+/// - Current password verification.
+/// - Minimum length validation (6+ alphanumeric characters).
+/// - New password cannot be identical to current password.
+/// - Confirmation password matching.
 class ChangePasswordScreen extends StatefulWidget {
   const ChangePasswordScreen({super.key});
 
@@ -93,7 +99,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
                     child: Row(
                       children: [
                         CircleAvatar(
-                          backgroundColor: AppColors.warning.withOpacity(0.15),
+                          backgroundColor: AppColors.warning.withValues(alpha: 0.15),
                           child: const Icon(Icons.security, color: AppColors.warning),
                         ),
                         const SizedBox(width: 12),

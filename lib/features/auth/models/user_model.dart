@@ -1,11 +1,25 @@
+/// Represents an authenticated user profile within the BMS Mobile ecosystem.
+/// Encapsulates user identity, clinical or administrative role, and contact information.
 class UserModel {
+  /// Unique identifier of the user (UUID or MongoDB ObjectId).
   final String id;
+
+  /// User login name.
   final String username;
+
+  /// User primary email address.
   final String email;
+
+  /// Full display name of the user or patient.
   final String fullName;
+
+  /// Optional telephone number.
   final String? phoneNumber;
+
+  /// Assigned system role (e.g., Patient, Doctor, LabUser, Receptionist, Manager, Admin).
   final String role;
 
+  /// Creates a new [UserModel] instance.
   UserModel({
     required this.id,
     required this.username,

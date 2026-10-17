@@ -3,6 +3,11 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/network/api_client.dart';
 import 'login_screen.dart';
 
+/// Screen providing patient self-registration functionality (UC01).
+/// Enforces business constraints:
+/// - Mandatory valid Vietnamese email format and standard phone number format.
+/// - Minimum password complexity (6+ characters).
+/// - Default registration role assigned as Patient.
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
 
@@ -148,9 +153,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 Container(
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
-                    color: AppColors.primary.withOpacity(0.08),
+                    color: AppColors.primary.withValues(alpha: 0.08),
                     borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: AppColors.primary.withOpacity(0.2)),
+                    border: Border.all(color: AppColors.primary.withValues(alpha: 0.2)),
                   ),
                   child: const Row(
                     children: [

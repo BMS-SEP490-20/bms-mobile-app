@@ -2,6 +2,8 @@
 import 'package:flutter/material.dart';
 import 'package:bms_mobile_app/services/bms_auth.dart';
 
+/// Password Recovery / Forgot Password Screen (UC04).
+/// Initiates the account recovery process by requesting an OTP code sent to the registered email.
 class ForgotPasswordScreen extends StatefulWidget {
   const ForgotPasswordScreen({super.key});
 

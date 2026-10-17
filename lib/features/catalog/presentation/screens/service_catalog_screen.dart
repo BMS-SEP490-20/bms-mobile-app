@@ -159,7 +159,7 @@ class _ServiceCatalogScreenState extends State<ServiceCatalogScreen> {
               borderRadius: BorderRadius.circular(14),
               boxShadow: [
                 BoxShadow(
-                  color: const Color(0xFF1E3A8A).withOpacity(0.08),
+                  color: const Color(0xFF1E3A8A).withValues(alpha: 0.08),
                   blurRadius: 16,
                   offset: const Offset(0, 4),
                 ),
@@ -346,7 +346,7 @@ class _ServiceCatalogScreenState extends State<ServiceCatalogScreen> {
         borderRadius: BorderRadius.circular(14),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.06),
+            color: Colors.black.withValues(alpha: 0.06),
             blurRadius: 12,
             offset: const Offset(0, 4),
           ),
@@ -361,7 +361,7 @@ class _ServiceCatalogScreenState extends State<ServiceCatalogScreen> {
             decoration: BoxDecoration(
               borderRadius: const BorderRadius.vertical(top: Radius.circular(14)),
               gradient: LinearGradient(
-                colors: [accent.withOpacity(0.15), accent.withOpacity(0.35)],
+                colors: [accent.withValues(alpha: 0.15), accent.withValues(alpha: 0.35)],
               ),
             ),
             child: Stack(

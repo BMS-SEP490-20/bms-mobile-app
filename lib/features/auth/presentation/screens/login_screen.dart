@@ -9,6 +9,12 @@ import 'change_password_screen.dart';
 import '../../../dashboard/presentation/screens/role_dashboard_screen.dart';
 import '../../../patient/presentation/screens/profile_screen.dart';
 
+/// User Authentication & Login Screen (UC02).
+/// Authenticates patients and medical personnel against the BMS backend using JWT Bearer tokens.
+/// Features:
+/// - Single sign-on credentials verification (username/password).
+/// - Role-based post-login redirection.
+/// - Offline simulated fallback mode for mobile development.
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
 
@@ -190,7 +196,7 @@ class _LoginScreenState extends State<LoginScreen> {
               Navigator.pop(dialogContext);
 
               // Xóa session/token thông qua service xác thực.
-              await BmsAuth.logout();
+              BmsAuth.logout();
 
               if (!mounted) return;
 
