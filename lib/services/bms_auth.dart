@@ -1,20 +1,32 @@
-
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 
-// Android Emulator: dùng 10.0.2.2 để truy cập localhost của máy tính.
-// Windows Desktop: dùng localhost nếu API chạy trên cùng máy.
-// Điện thoại thật: dùng IP LAN của máy tính.
+/// Centralized API base URL configuration for development and emulator environments.
+/// - Android Emulator: Uses 10.0.2.2 to access host localhost.
+/// - Windows Desktop: Uses localhost directly.
+/// - Physical Device: Uses LAN IP address of the development workstation.
 const String apiBaseUrl = 'http://localhost:5000';
 
+/// Clinical Authentication Service managing user login sessions, JWT storage, and password reset requests.
+/// Conforms to: BR-IAM-01, BR-IAM-02 & AGENTS-CODE.md.
 class BmsAuth {
+  /// Active JWT Bearer access token issued by the backend IAM microservice.
   static String? accessToken;
+
+  /// Long-lived Refresh Token for rolling session renewal.
   static String? refreshToken;
+
+  /// Cached user profile claims (userId, role, fullName, permissions).
   static Map<String, dynamic>? user;
 
+  /// Returns whether a valid user session is currently authenticated in-memory.
   static bool get isLoggedIn =>
       accessToken != null && accessToken!.isNotEmpty;
 
+  /// Authenticates user credentials against the BMS Backend API (/api/auth/login).
+  ///
+  /// Returns a map containing operation status, server messages, and claims.
   static Future<Map<String, dynamic>> login({
     required String usernameOrEmail,
     required String password,
@@ -42,7 +54,7 @@ class BmsAuth {
           data = decoded;
         }
       } catch (_) {
-        // Phản hồi không phải JSON.
+        // Non-JSON response payload
       }
 
       if (response.statusCode >= 200 &&
@@ -71,12 +83,12 @@ class BmsAuth {
       return {
         'success': false,
         'message':
-        'Không thể kết nối API. Kiểm tra server và địa chỉ API.',
+            'Không thể kết nối API. Kiểm tra server và địa chỉ API.',
       };
     }
   }
 
-
+  /// Dispatches a password recovery OTP to the user's registered email address (UC10).
   static Future<Map<String, dynamic>> sendPasswordRecoveryOtp({
     required String email,
   }) async {
@@ -85,10 +97,7 @@ class BmsAuth {
     );
 
     try {
-      print('OTP API URL: $uri');
-      print('OTP request body: ${jsonEncode({
-        'email': email.trim(),
-      })}');
+      debugPrint('[BMS Auth] Dispatching OTP recovery request to $uri');
 
       final response = await http
           .post(
@@ -102,9 +111,6 @@ class BmsAuth {
         }),
       )
           .timeout(const Duration(seconds: 20));
-
-      print('OTP status: ${response.statusCode}');
-      print('OTP response: ${response.body}');
 
       Map<String, dynamic> data = {};
 
@@ -131,7 +137,7 @@ class BmsAuth {
             'Gửi OTP thất bại (${response.statusCode}).',
       };
     } catch (e) {
-      print('OTP exception: $e');
+      debugPrint('[BMS Auth] OTP request error: $e');
 
       return {
         'success': false,
@@ -139,6 +145,8 @@ class BmsAuth {
       };
     }
   }
+
+  /// Clears active credentials, tokens, and user profile claims from memory.
   static void logout() {
     accessToken = null;
     refreshToken = null;

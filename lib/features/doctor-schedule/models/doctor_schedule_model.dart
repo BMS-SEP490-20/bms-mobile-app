@@ -1,4 +1,5 @@
 /// Models for UC16 – View Doctor Schedule (Mobile).
+library;
 
 /// A single time-slot cell.
 class ScheduleSlot {

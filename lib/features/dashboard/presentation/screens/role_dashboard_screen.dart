@@ -4,6 +4,13 @@ import '../../../../core/network/api_client.dart';
 import '../../models/dashboard_stats_model.dart';
 import '../../../auth/presentation/screens/change_password_screen.dart';
 
+/// Adaptive multi-role operational dashboard screen (UC12).
+/// Renders specialized medical KPIs and operational cards tailored for:
+/// - Patient: Appointments, lab results, turnaround estimates.
+/// - Doctor: Assigned patient queues, pending result approvals.
+/// - LabUser: Specimen run queues, in-process tests, STAT alerts.
+/// - Receptionist: Daily check-in volumes, collection queues, cashier metrics.
+/// - Manager: Lab turnaround time (TAT), daily revenue, IoT refrigerator telemetry.
 class RoleDashboardScreen extends StatefulWidget {
   final String initialRole;
 
@@ -153,7 +160,7 @@ class _RoleDashboardScreenState extends State<RoleDashboardScreen> {
                   borderRadius: BorderRadius.circular(16),
                   boxShadow: [
                     BoxShadow(
-                      color: AppColors.primary.withOpacity(0.25),
+                      color: AppColors.primary.withValues(alpha: 0.25),
                       blurRadius: 10,
                       offset: const Offset(0, 4),
                     ),
@@ -183,7 +190,7 @@ class _RoleDashboardScreenState extends State<RoleDashboardScreen> {
                           Text(
                             'Vai trò đang xem: ${_roles.firstWhere((r) => r['key'] == _selectedRole)['label']}',
                             style: TextStyle(
-                              color: Colors.white.withOpacity(0.9),
+                              color: Colors.white.withValues(alpha: 0.9),
                               fontSize: 13,
                             ),
                           ),
@@ -281,10 +288,10 @@ class _RoleDashboardScreenState extends State<RoleDashboardScreen> {
                       decoration: BoxDecoration(
                         color: AppColors.surface,
                         borderRadius: BorderRadius.circular(16),
-                        border: Border.all(color: cardColor.withOpacity(0.35), width: 1.5),
+                        border: Border.all(color: cardColor.withValues(alpha: 0.35), width: 1.5),
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.black.withOpacity(0.03),
+                            color: Colors.black.withValues(alpha: 0.03),
                             blurRadius: 6,
                             offset: const Offset(0, 2),
                           ),
@@ -299,7 +306,7 @@ class _RoleDashboardScreenState extends State<RoleDashboardScreen> {
                             children: [
                               CircleAvatar(
                                 radius: 18,
-                                backgroundColor: cardColor.withOpacity(0.12),
+                                backgroundColor: cardColor.withValues(alpha: 0.12),
                                 child: Icon(iconData, color: cardColor, size: 20),
                               ),
                               Container(
@@ -395,7 +402,7 @@ class _RoleDashboardScreenState extends State<RoleDashboardScreen> {
                       ListTile(
                         contentPadding: EdgeInsets.zero,
                         leading: CircleAvatar(
-                          backgroundColor: AppColors.danger.withOpacity(0.12),
+                          backgroundColor: AppColors.danger.withValues(alpha: 0.12),
                           child: const Icon(Icons.logout, color: AppColors.danger),
                         ),
                         title: const Text('Đăng xuất phiên làm việc (UC06)'),

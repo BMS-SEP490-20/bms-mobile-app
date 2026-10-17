@@ -1,18 +1,28 @@
+/// Blood Laboratory Management System (BMS) - Mobile Client Application.
+///
+/// Provides cross-platform access for Patients, Clinical Staff, and Mobile Phlebotomists.
+/// Conforms to: Production Engineering Standards & AGENTS-CODE.md.
+library;
 
 import 'package:flutter/material.dart';
 
 import 'core/theme/app_colors.dart';
-import 'features/catalog/presentation/screens/service_catalog_screen.dart';
-import 'features/doctor-schedule/presentation/screens/doctor_schedule_screen.dart';
+import 'features/auth/presentation/screens/change_password_screen.dart';
+import 'features/auth/presentation/screens/forgot_password_screen.dart';
 import 'features/auth/presentation/screens/login_screen.dart';
-import 'features/auth/presentation/screens/patient_home_screen.dart';
 import 'features/auth/presentation/screens/otp_verification_screen.dart';
+import 'features/auth/presentation/screens/patient_home_screen.dart';
+import 'features/auth/presentation/screens/register_screen.dart';
+import 'features/catalog/presentation/screens/service_catalog_screen.dart';
+import 'features/dashboard/presentation/screens/role_dashboard_screen.dart';
+import 'features/doctor-schedule/presentation/screens/doctor_schedule_screen.dart';
 import 'features/patient/presentation/screens/update_account_screen.dart';
 
 void main() {
   runApp(const BmsMobileApp());
 }
 
+/// Root application widget establishing MaterialApp configuration, branding theme, and navigation routes.
 class BmsMobileApp extends StatelessWidget {
   const BmsMobileApp({super.key});
 
@@ -33,13 +43,17 @@ class BmsMobileApp extends StatelessWidget {
         fontFamily: 'Roboto',
       ),
 
-      // Màn hình giới thiệu BMS và nút đăng nhập.
+      // Landing introduction screen with sign-in trigger
       home: const MainScreen(),
 
-      // Các route dùng chung trong ứng dụng.
+      // Centralized named routes registry across Iteration 1 use cases
       routes: {
         '/login': (context) => const LoginScreen(),
+        '/register': (context) => const RegisterScreen(),
+        '/forgot-password': (context) => const ForgotPasswordScreen(),
+        '/change-password': (context) => const ChangePasswordScreen(),
         '/patient-home': (context) => const PatientHomeScreen(),
+        '/role-dashboard': (context) => const RoleDashboardScreen(),
         '/otp-verify': (context) => const OtpVerificationScreen(
               destination: 'patient.johnson@gmail.com',
               purpose: 'PasswordReset',
@@ -53,6 +67,7 @@ class BmsMobileApp extends StatelessWidget {
   }
 }
 
+/// Initial landing screen presenting the BMS Health brand and entry points.
 class MainScreen extends StatelessWidget {
   const MainScreen({super.key});
 
@@ -121,4 +136,3 @@ class MainScreen extends StatelessWidget {
     );
   }
 }
-
