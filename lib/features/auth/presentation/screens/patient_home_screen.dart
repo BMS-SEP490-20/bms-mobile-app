@@ -347,8 +347,8 @@ class _PatientHomeScreenState extends State<PatientHomeScreen> {
             childAspectRatio: 1.65,
             children: [
               buildActionItem(
-                icon: Icons.calendar_month_outlined,
-                label: 'Book test',
+                icon: Icons.biotech_outlined,
+                label: 'Search Packages',
                 color: blue,
                 backgroundColor: const Color(0xFFEFF6FF),
                 onTap: () => onTabSelected(1),
