@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/network/api_client.dart';
+import '../../../../services/bms_auth.dart';
 import '../../models/dashboard_stats_model.dart';
 import '../../../auth/presentation/screens/change_password_screen.dart';
 
@@ -382,6 +383,44 @@ class _RoleDashboardScreenState extends State<RoleDashboardScreen> {
                         ),
                       ),
                       const SizedBox(height: 12),
+                      ListTile(
+                        contentPadding: EdgeInsets.zero,
+                        leading: const CircleAvatar(
+                          backgroundColor: Color(0xFFE0F2FE),
+                          child: Icon(Icons.biotech_outlined, color: AppColors.primary),
+                        ),
+                        title: const Text('Tra cứu Gói Xét Nghiệm (UC20)'),
+                        subtitle: const Text('Tìm kiếm gói XN, lọc ống mẫu, khoảng giá & chỉ số'),
+                        trailing: const Icon(Icons.chevron_right),
+                        onTap: () {
+                          Navigator.pushNamed(context, '/search-test-packages');
+                        },
+                      ),
+                      if (BmsAuth.isReceptionist) ...[
+                        const Divider(height: 1),
+                        ListTile(
+                          contentPadding: EdgeInsets.zero,
+                          leading: const CircleAvatar(
+                            backgroundColor: Color(0xFFDCFCE7),
+                            child: Icon(
+                              Icons.person_add_alt_1_outlined,
+                              color: Color(0xFF15803D),
+                            ),
+                          ),
+                          title: const Text('Tạo Hồ Sơ Khách Vãng Lai (UC28)'),
+                          subtitle: const Text(
+                            'Đăng ký nhanh khách walk-in và kiểm tra trùng SĐT/CCCD',
+                          ),
+                          trailing: const Icon(Icons.chevron_right),
+                          onTap: () {
+                            Navigator.pushNamed(
+                              context,
+                              '/create-guest-profile',
+                            );
+                          },
+                        ),
+                      ],
+                      const Divider(height: 1),
                       ListTile(
                         contentPadding: EdgeInsets.zero,
                         leading: const CircleAvatar(

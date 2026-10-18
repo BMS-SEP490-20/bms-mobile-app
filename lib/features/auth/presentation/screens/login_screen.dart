@@ -6,7 +6,9 @@ import '../../../../core/theme/app_colors.dart';
 import 'forgot_password_screen.dart';
 import 'register_screen.dart';
 import 'change_password_screen.dart';
+import '../../../catalog/presentation/screens/service_catalog_screen.dart';
 import '../../../dashboard/presentation/screens/role_dashboard_screen.dart';
+import '../../../patient/presentation/screens/create_guest_profile_screen.dart';
 import '../../../patient/presentation/screens/profile_screen.dart';
 
 /// User Authentication & Login Screen (UC02).
@@ -221,12 +223,15 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Widget buildDashboard() {
+    final role = BmsAuth.userRole.isNotEmpty ? BmsAuth.userRole : 'Patient';
+    final isReceptionist = BmsAuth.isReceptionist;
+
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: const Text(
-          'BMS Patient Portal',
-          style: TextStyle(fontWeight: FontWeight.bold),
+        title: Text(
+          isReceptionist ? 'BMS Receptionist Portal' : 'BMS Mobile Portal',
+          style: const TextStyle(fontWeight: FontWeight.bold),
         ),
         backgroundColor: AppColors.surface,
         foregroundColor: AppColors.textPrimary,
@@ -258,11 +263,15 @@ class _LoginScreenState extends State<LoginScreen> {
                   padding: const EdgeInsets.all(20),
                   child: Row(
                     children: [
-                      const CircleAvatar(
+                      CircleAvatar(
                         radius: 28,
-                        backgroundColor: AppColors.primary,
+                        backgroundColor: isReceptionist
+                            ? const Color(0xFF059669)
+                            : AppColors.primary,
                         child: Icon(
-                          Icons.person,
+                          isReceptionist
+                              ? Icons.support_agent_rounded
+                              : Icons.person,
                           size: 32,
                           color: Colors.white,
                         ),
@@ -280,11 +289,12 @@ class _LoginScreenState extends State<LoginScreen> {
                               ),
                             ),
                             const SizedBox(height: 4),
-                            const Text(
-                              'Vai trò: Bệnh nhân (Patient)',
-                              style: TextStyle(
+                            Text(
+                              'Vai trò: $role',
+                              style: const TextStyle(
                                 color: AppColors.textSecondary,
                                 fontSize: 13,
+                                fontWeight: FontWeight.w600,
                               ),
                             ),
                           ],
@@ -318,12 +328,64 @@ class _LoginScreenState extends State<LoginScreen> {
                         Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (_) =>
-                                const RoleDashboardScreen(),
+                            builder: (_) => RoleDashboardScreen(
+                              initialRole: role,
+                            ),
                           ),
                         );
                       },
                     ),
+                    const Divider(height: 1),
+                    ListTile(
+                      leading: const Icon(
+                        Icons.biotech_outlined,
+                        color: AppColors.primary,
+                      ),
+                      title: const Text(
+                        'Tra cứu Gói Xét Nghiệm (UC20)',
+                        style: TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                      subtitle: const Text(
+                        'Tìm kiếm gói XN, lọc ống mẫu, khoảng giá & chỉ số',
+                      ),
+                      trailing: const Icon(Icons.chevron_right),
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const ServiceCatalogScreen(),
+                          ),
+                        );
+                      },
+                    ),
+                    if (isReceptionist) ...[
+                      const Divider(height: 1),
+                      ListTile(
+                        leading: const Icon(
+                          Icons.person_add_alt_1_rounded,
+                          color: Color(0xFF059669),
+                        ),
+                        title: const Text(
+                          'Tạo Hồ Sơ Khách Vãng Lai (UC28)',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFF059669),
+                          ),
+                        ),
+                        subtitle: const Text(
+                          'Đăng ký khách walk-in & kiểm tra trùng SĐT/CCCD',
+                        ),
+                        trailing: const Icon(Icons.chevron_right),
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const CreateGuestProfileScreen(),
+                            ),
+                          );
+                        },
+                      ),
+                    ],
                     const Divider(height: 1),
                     ListTile(
                       leading: const Icon(
@@ -336,8 +398,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (_) =>
-                                const ChangePasswordScreen(),
+                            builder: (_) => const ChangePasswordScreen(),
                           ),
                         );
                       },
@@ -348,7 +409,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         Icons.badge_outlined,
                         color: AppColors.primary,
                       ),
-                      title: const Text('Hồ sơ bệnh nhân'),
+                      title: const Text('Hồ sơ cá nhân'),
                       subtitle: const Text('Thông tin cá nhân và thẻ QR'),
                       trailing: const Icon(Icons.chevron_right),
                       onTap: () {
@@ -356,27 +417,6 @@ class _LoginScreenState extends State<LoginScreen> {
                           context,
                           MaterialPageRoute(
                             builder: (_) => const ProfileScreen(),
-                          ),
-                        );
-                      },
-                    ),
-                    const Divider(height: 1),
-                    ListTile(
-                      leading: const Icon(
-                        Icons.qr_code,
-                        color: AppColors.success,
-                      ),
-                      title: const Text('QR Check-in'),
-                      subtitle: const Text(
-                        'Mã check-in tiếp đón bệnh nhân',
-                      ),
-                      trailing: const Icon(Icons.chevron_right),
-                      onTap: () {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text(
-                              'Chức năng QR Check-in chưa được triển khai.',
-                            ),
                           ),
                         );
                       },
@@ -405,6 +445,15 @@ class _LoginScreenState extends State<LoginScreen> {
         ),
       ),
     );
+  }
+
+  void _quickFillAndLogin(String username, String password) {
+    setState(() {
+      usernameController.text = username;
+      passwordController.text = password;
+      errorMessage = null;
+    });
+    handleLogin();
   }
 
   Widget buildLoginForm() {
@@ -598,7 +647,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                 context,
                                 MaterialPageRoute(
                                   builder: (_) =>
-                                      ForgotPasswordScreen(),
+                                      const ForgotPasswordScreen(),
                                 ),
                               );
                             },
@@ -663,7 +712,93 @@ class _LoginScreenState extends State<LoginScreen> {
                           ),
                         ),
                       ),
-                      const SizedBox(height: 24),
+                      const SizedBox(height: 20),
+                      const Text(
+                        'Đăng nhập nhanh theo vai trò (Kiểm thử):',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: muted,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: [
+                          ActionChip(
+                            avatar: const Icon(
+                              Icons.support_agent_rounded,
+                              size: 16,
+                              color: Color(0xFF059669),
+                            ),
+                            label: const Text(
+                              'Lễ Tân (Receptionist)',
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                                color: Color(0xFF059669),
+                              ),
+                            ),
+                            backgroundColor: const Color(0xFFECFDF5),
+                            onPressed: isLoading
+                                ? null
+                                : () => _quickFillAndLogin(
+                                      'recep_lananh',
+                                      'Admin@123',
+                                    ),
+                          ),
+                          ActionChip(
+                            label: const Text(
+                              'Bệnh Nhân (Patient)',
+                              style: TextStyle(fontSize: 12),
+                            ),
+                            onPressed: isLoading
+                                ? null
+                                : () => _quickFillAndLogin(
+                                      'patient_tranvanan',
+                                      'Admin@123',
+                                    ),
+                          ),
+                          ActionChip(
+                            label: const Text(
+                              'Bác Sĩ',
+                              style: TextStyle(fontSize: 12),
+                            ),
+                            onPressed: isLoading
+                                ? null
+                                : () => _quickFillAndLogin(
+                                      'dr_nguyenminh',
+                                      'Admin@123',
+                                    ),
+                          ),
+                          ActionChip(
+                            label: const Text(
+                              'KTV Lab',
+                              style: TextStyle(fontSize: 12),
+                            ),
+                            onPressed: isLoading
+                                ? null
+                                : () => _quickFillAndLogin(
+                                      'tech_quochung',
+                                      'Admin@123',
+                                    ),
+                          ),
+                          ActionChip(
+                            label: const Text(
+                              'Admin',
+                              style: TextStyle(fontSize: 12),
+                            ),
+                            onPressed: isLoading
+                                ? null
+                                : () => _quickFillAndLogin(
+                                      'admin_bms',
+                                      'Admin@123',
+                                    ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 20),
                       Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [

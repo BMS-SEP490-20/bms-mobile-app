@@ -16,6 +16,7 @@ import 'features/auth/presentation/screens/register_screen.dart';
 import 'features/catalog/presentation/screens/service_catalog_screen.dart';
 import 'features/dashboard/presentation/screens/role_dashboard_screen.dart';
 import 'features/doctor-schedule/presentation/screens/doctor_schedule_screen.dart';
+import 'features/patient/presentation/screens/create_guest_profile_screen.dart';
 import 'features/patient/presentation/screens/update_account_screen.dart';
 
 void main() {
@@ -46,7 +47,7 @@ class BmsMobileApp extends StatelessWidget {
       // Landing introduction screen with sign-in trigger
       home: const MainScreen(),
 
-      // Centralized named routes registry across Iteration 1 use cases
+      // Centralized named routes registry across Iteration 1 & 2 use cases
       routes: {
         '/login': (context) => const LoginScreen(),
         '/register': (context) => const RegisterScreen(),
@@ -60,6 +61,8 @@ class BmsMobileApp extends StatelessWidget {
               channel: 'Email',
             ),
         '/service-catalog': (context) => const ServiceCatalogScreen(),
+        '/search-test-packages': (context) => const ServiceCatalogScreen(),
+        '/create-guest-profile': (context) => const CreateGuestProfileScreen(),
         '/doctor-schedule': (context) => const DoctorScheduleScreen(),
         '/update-account': (context) => const UpdateAccountScreen(),
       },
@@ -126,6 +129,23 @@ class MainScreen extends StatelessWidget {
                         );
                       }
                     });
+                  },
+                ),
+              ),
+              const SizedBox(height: 12),
+              SizedBox(
+                width: double.infinity,
+                height: 46,
+                child: OutlinedButton.icon(
+                  icon: const Icon(Icons.biotech_outlined),
+                  label: const Text('Tra cứu Gói Xét Nghiệm (UC20)'),
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const ServiceCatalogScreen(),
+                      ),
+                    );
                   },
                 ),
               ),
