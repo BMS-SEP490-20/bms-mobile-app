@@ -18,7 +18,7 @@ import 'features/catalog/presentation/screens/service_catalog_screen.dart';
 import 'features/dashboard/presentation/screens/role_dashboard_screen.dart';
 import 'features/doctor-schedule/presentation/screens/doctor_schedule_screen.dart';
 import 'features/patient/presentation/screens/create_guest_profile_screen.dart';
-import 'features/walkin/presentation/screens/walkin_screen.dart';
+import 'features/walkin/presentation/register_walkin_screen.dart';
 import 'features/patient/presentation/screens/update_account_screen.dart';
 
 void main() {
@@ -68,7 +68,7 @@ class BmsMobileApp extends StatelessWidget {
         '/doctor-schedule': (context) => const DoctorScheduleScreen(),
         '/update-account': (context) => const UpdateAccountScreen(),
         '/book-appointment': (context) => const BookAppointmentScreen(),
-        '/walkin': (context) => const WalkInScreen(),
+        '/register-walkin': (context) => const RegisterWalkInScreen(),
       },
     );
   }
