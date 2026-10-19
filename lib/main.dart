@@ -13,6 +13,7 @@ import 'features/auth/presentation/screens/login_screen.dart';
 import 'features/auth/presentation/screens/otp_verification_screen.dart';
 import 'features/auth/presentation/screens/patient_home_screen.dart';
 import 'features/auth/presentation/screens/register_screen.dart';
+import 'features/appointment/presentation/book_appointment_screen.dart';
 import 'features/catalog/presentation/screens/service_catalog_screen.dart';
 import 'features/dashboard/presentation/screens/role_dashboard_screen.dart';
 import 'features/doctor-schedule/presentation/screens/doctor_schedule_screen.dart';
@@ -65,6 +66,7 @@ class BmsMobileApp extends StatelessWidget {
         '/create-guest-profile': (context) => const CreateGuestProfileScreen(),
         '/doctor-schedule': (context) => const DoctorScheduleScreen(),
         '/update-account': (context) => const UpdateAccountScreen(),
+        '/book-appointment': (context) => const BookAppointmentScreen(),
       },
     );
   }
