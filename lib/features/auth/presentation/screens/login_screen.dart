@@ -11,7 +11,9 @@ import '../../../dashboard/presentation/screens/role_dashboard_screen.dart';
 import '../../../patient/presentation/screens/create_guest_profile_screen.dart';
 import '../../../patient/presentation/screens/profile_screen.dart';
 
-/// User Authentication & Login Screen (UC02).
+/// UC05 - Log In to System (Mobile) Screen.
+/// Issue: I1-019 | BR-019 | Assignee: Hứa Khánh Duy | Reviewer: Võ Gia Huy
+/// User Authentication & Login Screen.
 /// Authenticates patients and medical personnel against the BMS backend using JWT Bearer tokens.
 /// Features:
 /// - Single sign-on credentials verification (username/password).
