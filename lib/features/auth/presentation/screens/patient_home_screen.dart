@@ -3,7 +3,9 @@ import 'package:flutter/material.dart';
 import '../../../catalog/presentation/screens/service_catalog_screen.dart';
 import '../../../patient/presentation/screens/profile_screen.dart';
 
-/// Patient Portal Mobile Landing & Navigation Dashboard (UC12 / Patient Role).
+/// UC81 / UCA01 - View Patient Homepage (Issue I1-004 | BR-004).
+/// Assignee: Hứa Khánh Duy | Reviewer: Võ Gia Huy
+/// Patient Portal Mobile Landing & Navigation Dashboard.
 /// Provides rapid access to laboratory services catalog, appointments, test results, and user profile.
 class PatientHomeScreen extends StatefulWidget {
   const PatientHomeScreen({super.key});
