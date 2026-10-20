@@ -20,6 +20,7 @@ import 'features/doctor-schedule/presentation/screens/doctor_schedule_screen.dar
 import 'features/patient/presentation/screens/create_guest_profile_screen.dart';
 import 'features/walkin/presentation/register_walkin_screen.dart';
 import 'features/patient/presentation/screens/update_account_screen.dart';
+import 'features/queue/presentation/screens/queue_ticket_screen.dart';
 
 void main() {
   runApp(const BmsMobileApp());
@@ -69,6 +70,7 @@ class BmsMobileApp extends StatelessWidget {
         '/update-account': (context) => const UpdateAccountScreen(),
         '/book-appointment': (context) => const BookAppointmentScreen(),
         '/register-walkin': (context) => const RegisterWalkInScreen(),
+        '/queue-ticket': (context) => const QueueTicketScreen(),
       },
     );
   }
@@ -150,6 +152,18 @@ class MainScreen extends StatelessWidget {
                         builder: (_) => const ServiceCatalogScreen(),
                       ),
                     );
+                  },
+                ),
+              ),
+              const SizedBox(height: 12),
+              SizedBox(
+                width: double.infinity,
+                height: 46,
+                child: OutlinedButton.icon(
+                  icon: const Icon(Icons.confirmation_number_outlined),
+                  label: const Text('Bốc Số Tiếp Nhận (UC27)'),
+                  onPressed: () {
+                    Navigator.pushNamed(context, '/queue-ticket');
                   },
                 ),
               ),
