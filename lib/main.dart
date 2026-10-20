@@ -25,6 +25,7 @@ import 'features/patient/presentation/screens/process_payment_screen.dart';
 import 'features/patient/presentation/screens/export_test_result_screen.dart';
 import 'features/dashboard/presentation/screens/configure_iot_thresholds_screen.dart';
 import 'features/laboratory/presentation/screens/verify_test_results_screen.dart';
+import 'features/laboratory/presentation/screens/trace_sample_origin_screen.dart';
 
 void main() {
   runApp(const BmsMobileApp());
@@ -84,6 +85,9 @@ class BmsMobileApp extends StatelessWidget {
         '/manager/iot-thresholds': (context) => const ConfigureIotThresholdsScreen(),
         '/verify-results': (context) => const VerifyTestResultsScreen(),
         '/laboratory/verify-results': (context) => const VerifyTestResultsScreen(),
+        '/sample-trace': (context) => const TraceSampleOriginScreen(),
+        '/laboratory/sample-trace': (context) => const TraceSampleOriginScreen(),
+        '/trace-sample': (context) => const TraceSampleOriginScreen(),
       },
     );
   }
