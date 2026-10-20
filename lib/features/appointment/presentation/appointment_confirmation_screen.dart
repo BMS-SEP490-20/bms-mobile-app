@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:qr_flutter/qr_flutter.dart';
 
 import '../data/appointment_repository.dart';
 import '../domain/appointment_confirmation_model.dart';
@@ -337,8 +338,12 @@ class _AppointmentConfirmationScreenState
                               borderRadius: BorderRadius.circular(12),
                               border: Border.all(color: const Color(0xFFE2E8F0), width: 1.5),
                             ),
-                            child: CustomPaint(
-                              painter: _QrMatrixPainter(),
+                            child: QrImageView(
+                              data: data.qrCodeData,
+                              version: QrVersions.auto,
+                              size: 134.0,
+                              gapless: true,
+                              errorCorrectionLevel: QrErrorCorrectLevel.M,
                             ),
                           ),
                           const SizedBox(height: 8),
@@ -355,47 +360,6 @@ class _AppointmentConfirmationScreenState
                       ),
                     ),
                     const SizedBox(height: 24),
-
-                    // Action Buttons
-                    SizedBox(
-                      width: double.infinity,
-                      height: 48,
-                      child: ElevatedButton.icon(
-                        onPressed: () {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('Appointment reminder added to your Calendar!')),
-                          );
-                        },
-                        icon: const Icon(Icons.calendar_today_rounded, size: 18),
-                        label: const Text('Add to calendar', style: TextStyle(fontWeight: FontWeight.w600)),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF1E40AF),
-                          foregroundColor: Colors.white,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 10),
-
-                    SizedBox(
-                      width: double.infinity,
-                      height: 48,
-                      child: OutlinedButton.icon(
-                        onPressed: () {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('Check-in QR code saved to gallery!')),
-                          );
-                        },
-                        icon: const Icon(Icons.qr_code_2_rounded, size: 20),
-                        label: const Text('Save QR image', style: TextStyle(fontWeight: FontWeight.w600)),
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: const Color(0xFF0F172A),
-                          side: const BorderSide(color: Color(0xFFCBD5E1)),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 10),
 
                     SizedBox(
                       width: double.infinity,
@@ -442,68 +406,4 @@ class _AppointmentConfirmationScreenState
       ],
     );
   }
-}
-
-/// Custom painter rendering a clean medical QR pattern
-class _QrMatrixPainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = const Color(0xFF0F172A)
-      ..style = PaintingStyle.fill;
-
-    final accentPaint = Paint()
-      ..color = const Color(0xFF059669)
-      ..style = PaintingStyle.fill;
-
-    final step = size.width / 15;
-
-    // Corner Finder Patterns
-    void drawFinder(double x, double y) {
-      canvas.drawRect(Rect.fromLTWH(x, y, step * 4, step * 4), paint);
-      canvas.drawRect(
-        Rect.fromLTWH(x + step * 0.8, y + step * 0.8, step * 2.4, step * 2.4),
-        Paint()..color = Colors.white,
-      );
-      canvas.drawRect(
-        Rect.fromLTWH(x + step * 1.4, y + step * 1.4, step * 1.2, step * 1.2),
-        paint,
-      );
-    }
-
-    drawFinder(0, 0);
-    drawFinder(size.width - step * 4, 0);
-    drawFinder(0, size.height - step * 4);
-
-    // Center Accent
-    canvas.drawRect(
-      Rect.fromLTWH(step * 5.5, step * 5.5, step * 4, step * 4),
-      accentPaint,
-    );
-    canvas.drawRect(
-      Rect.fromLTWH(step * 6.5, step * 6.5, step * 2, step * 2),
-      Paint()..color = Colors.white,
-    );
-
-    // Data points simulation
-    final dots = [
-      Offset(step * 5, step * 1),
-      Offset(step * 7, step * 2),
-      Offset(step * 9, step * 1),
-      Offset(step * 6, step * 10),
-      Offset(step * 8, step * 12),
-      Offset(step * 11, step * 6),
-      Offset(step * 12, step * 9),
-      Offset(step * 13, step * 12),
-      Offset(step * 2, step * 6),
-      Offset(step * 1, step * 8),
-    ];
-
-    for (final d in dots) {
-      canvas.drawRect(Rect.fromLTWH(d.dx, d.dy, step, step), paint);
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }

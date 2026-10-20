@@ -103,7 +103,7 @@ class AppointmentConfirmationModel {
       dateFormatted: json['dateFormatted']?.toString() ?? '',
       timeFormatted: json['timeFormatted']?.toString() ?? '',
       location: json['location']?.toString() ?? '',
-      status: json['status']?.toString() ?? 'Confirmed',
+      status: json['status']?.toString() ?? '',
       paymentStatus: json['paymentStatus']?.toString() ?? '',
       fastingInstructions: json['fastingInstructions']?.toString() ?? '',
       qrCodeData: json['qrCodeData']?.toString() ?? (json['appointmentCode']?.toString() ?? ''),
