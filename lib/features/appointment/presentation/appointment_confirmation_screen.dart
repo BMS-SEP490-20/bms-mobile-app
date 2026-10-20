@@ -45,10 +45,10 @@ class _AppointmentConfirmationScreenState
           _isLoading = false;
         });
       }
-    } catch (_) {
+    } catch (e) {
       if (mounted) {
         setState(() {
-          _data = AppointmentConfirmationModel.defaultMock(widget.appointmentCode);
+          _data = null;
           _isLoading = false;
         });
       }
@@ -65,13 +65,13 @@ class _AppointmentConfirmationScreenState
       );
       if (mounted) {
         setState(() {
-          _bannerMessage = 'Confirmation email resent successfully!';
+          _bannerMessage = 'Confirmation email resent successfully from server!';
         });
       }
-    } catch (_) {
+    } catch (e) {
       if (mounted) {
         setState(() {
-          _bannerMessage = 'Simulated confirmation email dispatched!';
+          _bannerMessage = 'Failed to dispatch email. Please check server connection.';
         });
       }
     } finally {
@@ -84,7 +84,68 @@ class _AppointmentConfirmationScreenState
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final data = _data ?? AppointmentConfirmationModel.defaultMock(widget.appointmentCode);
+
+    if (_isLoading) {
+      return Scaffold(
+        backgroundColor: const Color(0xFFF8FAFC),
+        appBar: AppBar(
+          title: const Text(
+            'Appointment Confirmed',
+            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+          ),
+          elevation: 0,
+          backgroundColor: Colors.white,
+          foregroundColor: const Color(0xFF0F172A),
+        ),
+        body: const Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    if (_data == null) {
+      return Scaffold(
+        backgroundColor: const Color(0xFFF8FAFC),
+        appBar: AppBar(
+          title: const Text(
+            'Appointment Confirmation',
+            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+          ),
+          elevation: 0,
+          backgroundColor: Colors.white,
+          foregroundColor: const Color(0xFF0F172A),
+        ),
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(24.0),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(Icons.event_busy, size: 64, color: Colors.grey),
+                const SizedBox(height: 16),
+                Text(
+                  'Appointment ${widget.appointmentCode} not found in database',
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 8),
+                const Text(
+                  'Please verify the appointment code or check your internet connection.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: Colors.grey),
+                ),
+                const SizedBox(height: 24),
+                ElevatedButton.icon(
+                  onPressed: _loadConfirmation,
+                  icon: const Icon(Icons.refresh),
+                  label: const Text('Retry Connection'),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
+    final data = _data!;
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
