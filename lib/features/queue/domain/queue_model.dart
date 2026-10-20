@@ -30,15 +30,15 @@ class QueueTicketModel {
   factory QueueTicketModel.fromJson(Map<String, dynamic> json) {
     return QueueTicketModel(
       id: json['id']?.toString() ?? '',
-      ticketNumber: json['ticketNumber']?.toString() ?? 'Q-001',
-      patientName: json['patientName']?.toString() ?? 'Bệnh nhân',
-      patientCode: json['patientCode']?.toString() ?? 'PT-000000',
-      packageName: json['packageName']?.toString() ?? 'Tổng quát',
+      ticketNumber: json['ticketNumber']?.toString() ?? '',
+      patientName: json['patientName']?.toString() ?? '',
+      patientCode: json['patientCode']?.toString() ?? '',
+      packageName: json['packageName']?.toString() ?? '',
       isWalkIn: json['isWalkIn'] == true,
-      checkedInTime: json['checkedInTime']?.toString() ?? '08:00',
-      waitTimeMinutes: (json['waitTimeMinutes'] as num?)?.toInt() ?? 5,
-      priority: json['priority']?.toString() ?? 'Routine',
-      status: json['status']?.toString() ?? 'Waiting',
+      checkedInTime: json['checkedInTime']?.toString() ?? '',
+      waitTimeMinutes: (json['waitTimeMinutes'] as num?)?.toInt() ?? 0,
+      priority: json['priority']?.toString() ?? '',
+      status: json['status']?.toString() ?? '',
       counterName: json['counterName']?.toString(),
     );
   }
@@ -56,7 +56,7 @@ class QueueStatsModel {
     this.avgWaitMinutes = 0,
     this.longestWaitMinutes = 0,
     this.servedToday = 0,
-    this.countersActive = '0 / 0',
+    this.countersActive = '',
   });
 
   factory QueueStatsModel.fromJson(Map<String, dynamic> json) {
@@ -65,7 +65,7 @@ class QueueStatsModel {
       avgWaitMinutes: (json['avgWaitMinutes'] as num?)?.toInt() ?? 0,
       longestWaitMinutes: (json['longestWaitMinutes'] as num?)?.toInt() ?? 0,
       servedToday: (json['servedToday'] as num?)?.toInt() ?? 0,
-      countersActive: json['countersActive']?.toString() ?? '0 / 0',
+      countersActive: json['countersActive']?.toString() ?? '',
     );
   }
 }
@@ -87,7 +87,7 @@ class QueueBoardModel {
       currentQueue: list
           .map((e) => QueueTicketModel.fromJson(e as Map<String, dynamic>))
           .toList(),
-      nextNumber: json['nextNumber']?.toString() ?? 'Q-001',
+      nextNumber: json['nextNumber']?.toString() ?? '',
       stats: json['stats'] is Map<String, dynamic>
           ? QueueStatsModel.fromJson(json['stats'] as Map<String, dynamic>)
           : const QueueStatsModel(),

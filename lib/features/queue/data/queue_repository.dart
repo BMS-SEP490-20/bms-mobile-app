@@ -56,8 +56,8 @@ class QueueRepository {
   }) async {
     Object? lastError;
     final payload = {
-      'patientName': patientName ?? 'Khách vãng lai',
-      'packageName': packageName ?? 'Tổng quát',
+      if (patientName != null && patientName.isNotEmpty) 'patientName': patientName,
+      if (packageName != null && packageName.isNotEmpty) 'packageName': packageName,
       'isWalkIn': isWalkIn,
       'priority': 1,
     };

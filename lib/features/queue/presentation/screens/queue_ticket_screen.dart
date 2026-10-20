@@ -155,8 +155,8 @@ class _QueueTicketScreenState extends State<QueueTicketScreen> {
         ? '${activeTicket.ticketNumber}${activeTicket.counterName != null && activeTicket.counterName!.isNotEmpty ? ' · ${activeTicket.counterName}' : ''}'
         : (board.currentQueue.isNotEmpty ? '${board.currentQueue.first.ticketNumber} · Chờ gọi' : 'Chưa có số phục vụ');
     final String nowServingSubtitle = activeTicket != null
-        ? '${activeTicket.patientName.isNotEmpty ? activeTicket.patientName : 'Bệnh nhân'} · ${activeTicket.priority}'
-        : (board.currentQueue.isNotEmpty ? '${board.currentQueue.length} bệnh nhân trong hàng đợi' : 'Hàng đợi hiện đang trống');
+        ? '${activeTicket.patientName.isNotEmpty ? activeTicket.patientName : ''} · ${activeTicket.priority}'
+        : (board.currentQueue.isNotEmpty ? '${board.currentQueue.length} tickets in queue' : 'Queue is currently empty');
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),

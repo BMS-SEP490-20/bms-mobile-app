@@ -403,6 +403,28 @@ class _RoleDashboardScreenState extends State<RoleDashboardScreen> {
                           leading: const CircleAvatar(
                             backgroundColor: Color(0xFFDCFCE7),
                             child: Icon(
+                              Icons.confirmation_number_outlined,
+                              color: Color(0xFF15803D),
+                            ),
+                          ),
+                          title: const Text('Cấp Số Hàng Đợi Tiếp Nhận (UC27)'),
+                          subtitle: const Text(
+                            'Xem bảng hàng đợi tiếp nhận và phát số thứ tự',
+                          ),
+                          trailing: const Icon(Icons.chevron_right),
+                          onTap: () {
+                            Navigator.pushNamed(
+                              context,
+                              '/queue-ticket',
+                            );
+                          },
+                        ),
+                        const Divider(height: 1),
+                        ListTile(
+                          contentPadding: EdgeInsets.zero,
+                          leading: const CircleAvatar(
+                            backgroundColor: Color(0xFFDCFCE7),
+                            child: Icon(
                               Icons.person_add_alt_1_outlined,
                               color: Color(0xFF15803D),
                             ),
