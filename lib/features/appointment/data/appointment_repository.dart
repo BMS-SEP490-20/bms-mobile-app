@@ -140,6 +140,53 @@ class AppointmentRepository {
     }
     throw AppointmentException('Could not load doctors.');
   }
+
+  Future<List<Map<String, dynamic>>> fetchMyAppointments({
+    String? status,
+    String? fromDate,
+    String? toDate,
+    int page = 1,
+    int pageSize = 20,
+  }) async {
+    final params = <String, String>{
+      'page': page.toString(),
+      'pageSize': pageSize.toString(),
+    };
+    if (status != null && status.isNotEmpty) {
+      params['status'] = status;
+    }
+    if (fromDate != null && fromDate.isNotEmpty) {
+      params['fromDate'] = fromDate;
+    }
+    if (toDate != null && toDate.isNotEmpty) {
+      params['toDate'] = toDate;
+    }
+
+    final res = await _get('/api/appointments', params);
+    if (res.statusCode == 200) {
+      final decoded = jsonDecode(res.body);
+      if (decoded is Map<String, dynamic> && decoded['data'] is List) {
+        return (decoded['data'] as List)
+            .whereType<Map<String, dynamic>>()
+            .toList();
+      }
+      if (decoded is List) {
+        return decoded.whereType<Map<String, dynamic>>().toList();
+      }
+    }
+    return [];
+  }
+
+  Future<Map<String, dynamic>?> fetchAppointmentDetail(String id) async {
+    final res = await _get('/api/appointments/$id/detail');
+    if (res.statusCode == 200) {
+      final decoded = jsonDecode(res.body);
+      if (decoded is Map<String, dynamic>) {
+        return decoded;
+      }
+    }
+    return null;
+  }
 }
 
 class AppointmentException implements Exception {
