@@ -10,6 +10,7 @@ import '../../data/patient_repository.dart';
 import '../../models/guest_profile_model.dart';
 
 /// Create Guest Profile Screen & Popup Modal (UC25 – Mobile).
+/// Issue: I2-018 | BR-079 | Assignee: Hứa Khánh Duy | Reviewer: Võ Gia Huy
 ///
 /// Strictly restricted to authenticated Receptionist role.
 /// Allows receptionists to:
