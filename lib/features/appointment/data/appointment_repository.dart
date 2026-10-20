@@ -140,6 +140,35 @@ class AppointmentRepository {
     }
     throw AppointmentException('Could not load doctors.');
   }
+
+  /// UC22 – Retrieves appointment confirmation receipt and check-in QR payload.
+  Future<Map<String, dynamic>> getAppointmentConfirmation(String appointmentIdOrCode) async {
+    final res = await _get('/api/appointments/$appointmentIdOrCode/confirmation');
+    if (res.statusCode == 200) {
+      final decoded = jsonDecode(res.body);
+      if (decoded is Map<String, dynamic>) {
+        return decoded['data'] is Map<String, dynamic>
+            ? decoded['data'] as Map<String, dynamic>
+            : decoded;
+      }
+    }
+    throw AppointmentException('Could not load appointment confirmation.');
+  }
+
+  /// UC22 – Triggers notification delivery (Email, Push, In-App).
+  Future<bool> sendNotification(
+    String appointmentId, {
+    int channel = 1,
+    int type = 1,
+    String? customMessage,
+  }) async {
+    final res = await _post('/api/appointments/$appointmentId/notify', {
+      'channel': channel,
+      'type': type,
+      if (customMessage != null) 'customMessage': customMessage,
+    });
+    return res.statusCode == 200;
+  }
 }
 
 class AppointmentException implements Exception {

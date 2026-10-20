@@ -3,6 +3,7 @@ import 'package:intl/intl.dart';
 
 import '../data/appointment_repository.dart';
 import '../domain/appointment_models.dart';
+import 'appointment_confirmation_screen.dart';
 
 /// Medical Blue tokens from AGENTS-DESIGN.md
 const Color kMedicalBlue = Color(0xFF1E40AF);
@@ -452,6 +453,29 @@ class _SuccessView extends StatelessWidget {
               style: TextStyle(fontSize: 13, color: Colors.grey.shade600),
             ),
             const Spacer(),
+            SizedBox(
+              width: double.infinity,
+              height: 48,
+              child: ElevatedButton.icon(
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => AppointmentConfirmationScreen(
+                        appointmentCode: result.appointmentCode,
+                      ),
+                    ),
+                  );
+                },
+                icon: const Icon(Icons.qr_code_2_rounded),
+                label: const Text('Xem mã QR Check-in & Hướng dẫn'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: kMedicalBlue,
+                  foregroundColor: Colors.white,
+                ),
+              ),
+            ),
+            const SizedBox(height: 10),
             SizedBox(
               width: double.infinity,
               height: 48,
