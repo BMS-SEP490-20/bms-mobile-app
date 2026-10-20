@@ -36,12 +36,18 @@ class _QueueTicketScreenState extends State<QueueTicketScreen> {
           _isLoading = false;
         });
       }
-    } catch (_) {
+    } catch (e) {
       if (mounted) {
         setState(() {
-          _board = QueueBoardModel.defaultMock();
+          _board = null;
           _isLoading = false;
         });
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Failed to load queue data from database. Pull down to retry.'),
+            backgroundColor: Colors.redAccent,
+          ),
+        );
       }
     }
   }
@@ -57,18 +63,18 @@ class _QueueTicketScreenState extends State<QueueTicketScreen> {
           _isIssuing = false;
         });
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Issued ticket ${_myTicketNumber!} successfully!')),
+          SnackBar(content: Text('Issued ticket ${_myTicketNumber!} successfully in database!')),
         );
         _loadQueue();
       }
-    } catch (_) {
+    } catch (e) {
       if (mounted) {
-        setState(() {
-          _myTicketNumber = _board?.nextNumber ?? 'Q-019';
-          _isIssuing = false;
-        });
+        setState(() => _isIssuing = false);
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Issued ticket ${_myTicketNumber!} (Offline simulation)')),
+          const SnackBar(
+            content: Text('Failed to issue ticket to database. Please try again.'),
+            backgroundColor: Colors.redAccent,
+          ),
         );
       }
     }
@@ -76,7 +82,72 @@ class _QueueTicketScreenState extends State<QueueTicketScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final board = _board ?? QueueBoardModel.defaultMock();
+    if (_isLoading) {
+      return Scaffold(
+        backgroundColor: const Color(0xFFF8FAFC),
+        appBar: AppBar(
+          title: const Text(
+            'Queue Management',
+            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+          ),
+          elevation: 0,
+          backgroundColor: Colors.white,
+          foregroundColor: const Color(0xFF0F172A),
+        ),
+        body: const Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    if (_board == null) {
+      return Scaffold(
+        backgroundColor: const Color(0xFFF8FAFC),
+        appBar: AppBar(
+          title: const Text(
+            'Queue Management',
+            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+          ),
+          elevation: 0,
+          backgroundColor: Colors.white,
+          foregroundColor: const Color(0xFF0F172A),
+          actions: [
+            IconButton(
+              icon: const Icon(Icons.refresh),
+              onPressed: _loadQueue,
+            ),
+          ],
+        ),
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(24.0),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(Icons.cloud_off, size: 64, color: Colors.grey),
+                const SizedBox(height: 16),
+                const Text(
+                  'Cannot connect to Queue Database',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 8),
+                const Text(
+                  'Please ensure the backend server and MongoDB are running.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: Colors.grey),
+                ),
+                const SizedBox(height: 24),
+                ElevatedButton.icon(
+                  onPressed: _loadQueue,
+                  icon: const Icon(Icons.refresh),
+                  label: const Text('Retry Connection'),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
+    final board = _board!;
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
