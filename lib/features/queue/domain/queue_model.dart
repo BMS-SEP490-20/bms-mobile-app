@@ -52,20 +52,20 @@ class QueueStatsModel {
   final String countersActive;
 
   const QueueStatsModel({
-    this.inQueueNow = 7,
-    this.avgWaitMinutes = 12,
-    this.longestWaitMinutes = 16,
-    this.servedToday = 18,
-    this.countersActive = '2 / 3',
+    this.inQueueNow = 0,
+    this.avgWaitMinutes = 0,
+    this.longestWaitMinutes = 0,
+    this.servedToday = 0,
+    this.countersActive = '0 / 0',
   });
 
   factory QueueStatsModel.fromJson(Map<String, dynamic> json) {
     return QueueStatsModel(
-      inQueueNow: (json['inQueueNow'] as num?)?.toInt() ?? 7,
-      avgWaitMinutes: (json['avgWaitMinutes'] as num?)?.toInt() ?? 12,
-      longestWaitMinutes: (json['longestWaitMinutes'] as num?)?.toInt() ?? 16,
-      servedToday: (json['servedToday'] as num?)?.toInt() ?? 18,
-      countersActive: json['countersActive']?.toString() ?? '2 / 3',
+      inQueueNow: (json['inQueueNow'] as num?)?.toInt() ?? 0,
+      avgWaitMinutes: (json['avgWaitMinutes'] as num?)?.toInt() ?? 0,
+      longestWaitMinutes: (json['longestWaitMinutes'] as num?)?.toInt() ?? 0,
+      servedToday: (json['servedToday'] as num?)?.toInt() ?? 0,
+      countersActive: json['countersActive']?.toString() ?? '0 / 0',
     );
   }
 }
@@ -87,76 +87,10 @@ class QueueBoardModel {
       currentQueue: list
           .map((e) => QueueTicketModel.fromJson(e as Map<String, dynamic>))
           .toList(),
-      nextNumber: json['nextNumber']?.toString() ?? 'Q-019',
+      nextNumber: json['nextNumber']?.toString() ?? 'Q-001',
       stats: json['stats'] is Map<String, dynamic>
           ? QueueStatsModel.fromJson(json['stats'] as Map<String, dynamic>)
           : const QueueStatsModel(),
-    );
-  }
-
-  static QueueBoardModel defaultMock() {
-    return const QueueBoardModel(
-      currentQueue: [
-        QueueTicketModel(
-          id: 'TKT-012',
-          ticketNumber: 'Q-012',
-          patientName: 'Lê Hoàng Nam',
-          patientCode: 'PT-012056',
-          packageName: 'Thyroid',
-          checkedInTime: '08:48',
-          waitTimeMinutes: 5,
-          priority: 'Routine',
-          status: 'Called',
-          counterName: 'Counter 1',
-        ),
-        QueueTicketModel(
-          id: 'TKT-013',
-          ticketNumber: 'Q-013',
-          patientName: 'Trần Thị Mai',
-          patientCode: 'PT-008214',
-          packageName: 'CBC',
-          checkedInTime: '08:52',
-          waitTimeMinutes: 8,
-          priority: 'Routine',
-          status: 'Waiting',
-        ),
-        QueueTicketModel(
-          id: 'TKT-014',
-          ticketNumber: 'Q-014',
-          patientName: 'Hoàng Văn Kiên',
-          patientCode: 'PT-010334',
-          packageName: 'Lipid',
-          isWalkIn: true,
-          checkedInTime: '08:55',
-          waitTimeMinutes: 11,
-          priority: 'Routine',
-          status: 'Waiting',
-        ),
-        QueueTicketModel(
-          id: 'TKT-016',
-          ticketNumber: 'Q-016',
-          patientName: 'Phạm Minh Ơn',
-          patientCode: 'PT-004987',
-          packageName: 'Liver Function',
-          checkedInTime: '09:08',
-          waitTimeMinutes: 8,
-          priority: 'Urgent',
-          status: 'Waiting',
-        ),
-        QueueTicketModel(
-          id: 'TKT-017',
-          ticketNumber: 'Q-017',
-          patientName: 'Lý Thị Hoa',
-          patientCode: 'PT-009876',
-          packageName: 'Thyroid + Liver',
-          checkedInTime: '09:12',
-          waitTimeMinutes: 4,
-          priority: 'STAT',
-          status: 'Waiting',
-        ),
-      ],
-      nextNumber: 'Q-019',
-      stats: QueueStatsModel(),
     );
   }
 }

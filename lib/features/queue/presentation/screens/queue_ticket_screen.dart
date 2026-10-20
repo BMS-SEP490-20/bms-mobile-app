@@ -148,6 +148,15 @@ class _QueueTicketScreenState extends State<QueueTicketScreen> {
     }
 
     final board = _board!;
+    final QueueTicketModel? activeTicket = board.currentQueue
+        .where((t) => t.status == 'Called' || t.status == 'Collecting')
+        .firstOrNull;
+    final String nowServingTitle = activeTicket != null
+        ? '${activeTicket.ticketNumber}${activeTicket.counterName != null && activeTicket.counterName!.isNotEmpty ? ' · ${activeTicket.counterName}' : ''}'
+        : (board.currentQueue.isNotEmpty ? '${board.currentQueue.first.ticketNumber} · Chờ gọi' : 'Chưa có số phục vụ');
+    final String nowServingSubtitle = activeTicket != null
+        ? '${activeTicket.patientName.isNotEmpty ? activeTicket.patientName : 'Bệnh nhân'} · ${activeTicket.priority}'
+        : (board.currentQueue.isNotEmpty ? '${board.currentQueue.length} bệnh nhân trong hàng đợi' : 'Hàng đợi hiện đang trống');
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
@@ -205,11 +214,11 @@ class _QueueTicketScreenState extends State<QueueTicketScreen> {
                             child: const Icon(Icons.volume_up_rounded, color: Colors.white, size: 28),
                           ),
                           const SizedBox(width: 14),
-                          const Expanded(
+                          Expanded(
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Text(
+                                const Text(
                                   'NOW SERVING',
                                   style: TextStyle(
                                     color: Colors.white70,
@@ -218,20 +227,20 @@ class _QueueTicketScreenState extends State<QueueTicketScreen> {
                                     fontWeight: FontWeight.bold,
                                   ),
                                 ),
-                                SizedBox(height: 2),
+                                const SizedBox(height: 2),
                                 Text(
-                                  'Q-012 · Counter 1',
-                                  style: TextStyle(
+                                  nowServingTitle,
+                                  style: const TextStyle(
                                     color: Colors.white,
                                     fontSize: 20,
                                     fontWeight: FontWeight.bold,
                                     fontFamily: 'monospace',
                                   ),
                                 ),
-                                SizedBox(height: 2),
+                                const SizedBox(height: 2),
                                 Text(
-                                  'Lê Hoàng Nam · Routine',
-                                  style: TextStyle(color: Colors.white70, fontSize: 12),
+                                  nowServingSubtitle,
+                                  style: const TextStyle(color: Colors.white70, fontSize: 12),
                                 ),
                               ],
                             ),
