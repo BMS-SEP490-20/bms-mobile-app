@@ -23,6 +23,7 @@ import 'features/patient/presentation/screens/update_account_screen.dart';
 import 'features/queue/presentation/screens/queue_ticket_screen.dart';
 import 'features/patient/presentation/screens/process_payment_screen.dart';
 import 'features/patient/presentation/screens/export_test_result_screen.dart';
+import 'features/dashboard/presentation/screens/configure_iot_thresholds_screen.dart';
 
 void main() {
   runApp(const BmsMobileApp());
@@ -78,6 +79,8 @@ class BmsMobileApp extends StatelessWidget {
         '/results/export': (context) => const ExportTestResultScreen(),
         '/export-results': (context) => const ExportTestResultScreen(),
         '/patient/results': (context) => const ExportTestResultScreen(),
+        '/iot-thresholds': (context) => const ConfigureIotThresholdsScreen(),
+        '/manager/iot-thresholds': (context) => const ConfigureIotThresholdsScreen(),
       },
     );
   }
