@@ -140,6 +140,45 @@ class AppointmentRepository {
     }
     throw AppointmentException('Could not load doctors.');
   }
+
+  Future<Map<String, dynamic>?> fetchQueueStatus({String? roomId}) async {
+    final params = roomId != null && roomId.isNotEmpty ? {'roomId': roomId} : null;
+    final res = await _get('/api/reception/queue', params);
+    if (res.statusCode == 200) {
+      final decoded = jsonDecode(res.body);
+      if (decoded is Map<String, dynamic>) {
+        return decoded;
+      }
+    }
+    return null;
+  }
+
+  Future<List<Map<String, dynamic>>> fetchMyAppointments({
+    String? status,
+    int page = 1,
+    int pageSize = 20,
+  }) async {
+    final params = <String, String>{
+      'page': page.toString(),
+      'pageSize': pageSize.toString(),
+    };
+    if (status != null && status.isNotEmpty) {
+      params['status'] = status;
+    }
+    final res = await _get('/api/appointments', params);
+    if (res.statusCode == 200) {
+      final decoded = jsonDecode(res.body);
+      if (decoded is Map<String, dynamic> && decoded['data'] is List) {
+        return (decoded['data'] as List)
+            .whereType<Map<String, dynamic>>()
+            .toList();
+      }
+      if (decoded is List) {
+        return decoded.whereType<Map<String, dynamic>>().toList();
+      }
+    }
+    return [];
+  }
 }
 
 class AppointmentException implements Exception {
