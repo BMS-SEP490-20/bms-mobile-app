@@ -22,6 +22,7 @@ import 'features/walkin/presentation/register_walkin_screen.dart';
 import 'features/patient/presentation/screens/update_account_screen.dart';
 import 'features/queue/presentation/screens/queue_ticket_screen.dart';
 import 'features/patient/presentation/screens/process_payment_screen.dart';
+import 'features/patient/presentation/screens/export_test_result_screen.dart';
 
 void main() {
   runApp(const BmsMobileApp());
@@ -74,6 +75,9 @@ class BmsMobileApp extends StatelessWidget {
         '/queue-ticket': (context) => const QueueTicketScreen(),
         '/payment': (context) => const ProcessPaymentScreen(),
         '/checkout': (context) => const ProcessPaymentScreen(),
+        '/results/export': (context) => const ExportTestResultScreen(),
+        '/export-results': (context) => const ExportTestResultScreen(),
+        '/patient/results': (context) => const ExportTestResultScreen(),
       },
     );
   }
