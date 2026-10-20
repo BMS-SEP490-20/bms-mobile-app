@@ -7,6 +7,7 @@ import '../../data/catalog_repository.dart';
 import '../../models/test_package_model.dart';
 
 /// UC20: Search Test Packages (Mobile) Screen.
+/// Issue: I2-003 | BR-064 | Assignee: Hứa Khánh Duy | Reviewer: Võ Gia Huy
 ///
 /// Connects to `GET /api/v1/test-packages/search` and `GET /api/v1/test-packages/{id}`:
 /// - Keyword search across package name, code, description, and biomarker criteria
