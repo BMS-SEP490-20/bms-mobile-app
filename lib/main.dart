@@ -21,6 +21,7 @@ import 'features/patient/presentation/screens/create_guest_profile_screen.dart';
 import 'features/walkin/presentation/register_walkin_screen.dart';
 import 'features/patient/presentation/screens/update_account_screen.dart';
 import 'features/queue/presentation/screens/queue_ticket_screen.dart';
+import 'features/patient/presentation/screens/process_payment_screen.dart';
 
 void main() {
   runApp(const BmsMobileApp());
@@ -71,6 +72,8 @@ class BmsMobileApp extends StatelessWidget {
         '/book-appointment': (context) => const BookAppointmentScreen(),
         '/register-walkin': (context) => const RegisterWalkInScreen(),
         '/queue-ticket': (context) => const QueueTicketScreen(),
+        '/payment': (context) => const ProcessPaymentScreen(),
+        '/checkout': (context) => const ProcessPaymentScreen(),
       },
     );
   }
