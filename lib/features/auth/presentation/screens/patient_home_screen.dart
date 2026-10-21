@@ -140,6 +140,16 @@ class _PatientHomeScreenState extends State<PatientHomeScreen> {
                   ],
                 ),
               ),
+              IconButton(
+                icon: const Badge(
+                  label: Text('1'),
+                  child: Icon(Icons.notifications_outlined, color: Colors.white, size: 24),
+                ),
+                onPressed: () {
+                  Navigator.pushNamed(context, '/patient/notifications');
+                },
+              ),
+              const SizedBox(width: 4),
               Container(
                 width: 46,
                 height: 46,

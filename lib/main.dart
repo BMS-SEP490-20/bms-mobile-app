@@ -26,6 +26,7 @@ import 'features/patient/presentation/screens/export_test_result_screen.dart';
 import 'features/dashboard/presentation/screens/configure_iot_thresholds_screen.dart';
 import 'features/laboratory/presentation/screens/verify_test_results_screen.dart';
 import 'features/laboratory/presentation/screens/trace_sample_origin_screen.dart';
+import 'features/patient/presentation/screens/test_result_notifications_screen.dart';
 
 void main() {
   runApp(const BmsMobileApp());
@@ -88,6 +89,9 @@ class BmsMobileApp extends StatelessWidget {
         '/sample-trace': (context) => const TraceSampleOriginScreen(),
         '/laboratory/sample-trace': (context) => const TraceSampleOriginScreen(),
         '/trace-sample': (context) => const TraceSampleOriginScreen(),
+        '/notifications': (context) => const TestResultNotificationsScreen(),
+        '/patient/notifications': (context) => const TestResultNotificationsScreen(),
+        '/test-result-notifications': (context) => const TestResultNotificationsScreen(),
       },
     );
   }
@@ -181,6 +185,18 @@ class MainScreen extends StatelessWidget {
                   label: const Text('Bốc Số Tiếp Nhận (UC27)'),
                   onPressed: () {
                     Navigator.pushNamed(context, '/queue-ticket');
+                  },
+                ),
+              ),
+              const SizedBox(height: 12),
+              SizedBox(
+                width: double.infinity,
+                height: 46,
+                child: OutlinedButton.icon(
+                  icon: const Icon(Icons.notifications_active_outlined),
+                  label: const Text('Thông Báo Kết Quả (UC60)'),
+                  onPressed: () {
+                    Navigator.pushNamed(context, '/patient/notifications');
                   },
                 ),
               ),
