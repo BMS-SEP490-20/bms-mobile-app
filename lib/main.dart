@@ -28,6 +28,7 @@ import 'features/laboratory/presentation/screens/verify_test_results_screen.dart
 import 'features/laboratory/presentation/screens/trace_sample_origin_screen.dart';
 import 'features/patient/presentation/screens/test_result_notifications_screen.dart';
 import 'features/patient/presentation/screens/test_history_screen.dart';
+import 'features/patient/presentation/screens/track_test_progress_screen.dart';
 
 void main() {
   runApp(const BmsMobileApp());
@@ -94,6 +95,8 @@ class BmsMobileApp extends StatelessWidget {
         '/notifications': (context) => const TestResultNotificationsScreen(),
         '/patient/notifications': (context) => const TestResultNotificationsScreen(),
         '/test-result-notifications': (context) => const TestResultNotificationsScreen(),
+        '/track-progress': (context) => const TrackTestProgressScreen(),
+        '/patient/track-progress': (context) => const TrackTestProgressScreen(),
       },
     );
   }
@@ -204,6 +207,12 @@ class MainScreen extends StatelessWidget {
               ),
               const SizedBox(height: 12),
               OutlinedButton.icon(onPressed: () => Navigator.pushNamed(context, '/patient/test-history'), icon: const Icon(Icons.history), label: const Text('Lịch Sử Xét Nghiệm (UC76)')),
+              const SizedBox(height: 12),
+              OutlinedButton.icon(
+                onPressed: () => Navigator.pushNamed(context, '/track-progress'),
+                icon: const Icon(Icons.timeline_rounded),
+                label: const Text('Theo Dõi Tiến Trình Xét Nghiệm (UC48)'),
+              ),
             ],
           ),
         ),
