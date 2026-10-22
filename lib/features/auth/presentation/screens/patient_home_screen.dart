@@ -42,9 +42,13 @@ class _PatientHomeScreenState extends State<PatientHomeScreen> {
   }
 
   void onTabSelected(int index) {
+    if (index == 3) {
+      Navigator.pushNamed(context, '/patient/test-history');
+      return;
+    }
     setState(() => selectedIndex = index);
 
-    if (index == 2 || index == 3) {
+    if (index == 2) {
       showMessage('${tabs[index]} screen đang được phát triển.');
     }
   }

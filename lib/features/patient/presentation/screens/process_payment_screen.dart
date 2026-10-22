@@ -179,7 +179,7 @@ class _ProcessPaymentScreenState extends State<ProcessPaymentScreen> {
                       if (_errorMessage != null)
                         Container(
                           padding: const EdgeInsets.all(12),
-                          margin: const EdgeInsets.bottom(12),
+                          margin: const EdgeInsets.only(bottom: 12),
                           decoration: BoxDecoration(
                             color: const Color(0xFFFDE8E8),
                             borderRadius: BorderRadius.circular(10),
@@ -278,7 +278,7 @@ class _ProcessPaymentScreenState extends State<ProcessPaymentScreen> {
       child: Column(
         children: [
           Row(
-            mainAxisAlignment: MainAxisAlignment.between,
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
                 _checkoutData?.packageName ?? 'Lipid Profile',
@@ -293,7 +293,7 @@ class _ProcessPaymentScreenState extends State<ProcessPaymentScreen> {
           if (_appliedDiscountAmount > 0) ...[
             const SizedBox(height: 8),
             Row(
-              mainAxisAlignment: MainAxisAlignment.between,
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
                   '${_appliedDiscountCode ?? "PROMO"} (-10%)',
@@ -308,7 +308,7 @@ class _ProcessPaymentScreenState extends State<ProcessPaymentScreen> {
           ],
           const Divider(height: 24, thickness: 1, color: Color(0xFFF3F4F6)),
           Row(
-            mainAxisAlignment: MainAxisAlignment.between,
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               const Text(
                 'Total',
@@ -501,7 +501,7 @@ class _ProcessPaymentScreenState extends State<ProcessPaymentScreen> {
               child: Column(
                 children: [
                   Row(
-                    mainAxisAlignment: MainAxisAlignment.between,
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       const Text('Invoice Code:', style: TextStyle(fontSize: 12, color: Color(0xFF6B7280))),
                       Text(_successResult?.invoiceCode ?? '', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
@@ -509,7 +509,7 @@ class _ProcessPaymentScreenState extends State<ProcessPaymentScreen> {
                   ),
                   const SizedBox(height: 6),
                   Row(
-                    mainAxisAlignment: MainAxisAlignment.between,
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       const Text('Total Paid:', style: TextStyle(fontSize: 12, color: Color(0xFF6B7280))),
                       Text(
