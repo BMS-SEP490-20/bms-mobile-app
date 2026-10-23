@@ -29,6 +29,7 @@ import 'features/laboratory/presentation/screens/trace_sample_origin_screen.dart
 import 'features/patient/presentation/screens/test_result_notifications_screen.dart';
 import 'features/patient/presentation/screens/test_history_screen.dart';
 import 'features/patient/presentation/screens/track_test_progress_screen.dart';
+import 'features/patient/presentation/screens/calculate_fees_screen.dart';
 
 void main() {
   runApp(const BmsMobileApp());
@@ -97,6 +98,8 @@ class BmsMobileApp extends StatelessWidget {
         '/test-result-notifications': (context) => const TestResultNotificationsScreen(),
         '/track-progress': (context) => const TrackTestProgressScreen(),
         '/patient/track-progress': (context) => const TrackTestProgressScreen(),
+        '/calculate-fees': (context) => const CalculateFeesScreen(),
+        '/patient/calculate-fees': (context) => const CalculateFeesScreen(),
       },
     );
   }
@@ -111,7 +114,7 @@ class MainScreen extends StatelessWidget {
     return Scaffold(
       backgroundColor: const Color(0xFFF5F7FB),
       body: Center(
-        child: Padding(
+        child: SingleChildScrollView(
           padding: const EdgeInsets.all(24),
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -212,6 +215,12 @@ class MainScreen extends StatelessWidget {
                 onPressed: () => Navigator.pushNamed(context, '/track-progress'),
                 icon: const Icon(Icons.timeline_rounded),
                 label: const Text('Theo Dõi Tiến Trình Xét Nghiệm (UC48)'),
+              ),
+              const SizedBox(height: 12),
+              OutlinedButton.icon(
+                onPressed: () => Navigator.pushNamed(context, '/calculate-fees'),
+                icon: const Icon(Icons.calculate_outlined),
+                label: const Text('Dự Toán Phí Xét Nghiệm (UC53)'),
               ),
             ],
           ),
