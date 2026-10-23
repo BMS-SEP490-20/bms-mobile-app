@@ -28,6 +28,7 @@ import 'features/laboratory/presentation/screens/verify_test_results_screen.dart
 import 'features/laboratory/presentation/screens/trace_sample_origin_screen.dart';
 import 'features/patient/presentation/screens/test_result_notifications_screen.dart';
 import 'features/patient/presentation/screens/test_history_screen.dart';
+import 'features/patient/presentation/screens/calculate_fees_screen.dart';
 
 void main() {
   runApp(const BmsMobileApp());
@@ -94,6 +95,8 @@ class BmsMobileApp extends StatelessWidget {
         '/notifications': (context) => const TestResultNotificationsScreen(),
         '/patient/notifications': (context) => const TestResultNotificationsScreen(),
         '/test-result-notifications': (context) => const TestResultNotificationsScreen(),
+        '/calculate-fees': (context) => const CalculateFeesScreen(),
+        '/patient/calculate-fees': (context) => const CalculateFeesScreen(),
       },
     );
   }
@@ -204,6 +207,12 @@ class MainScreen extends StatelessWidget {
               ),
               const SizedBox(height: 12),
               OutlinedButton.icon(onPressed: () => Navigator.pushNamed(context, '/patient/test-history'), icon: const Icon(Icons.history), label: const Text('Lịch Sử Xét Nghiệm (UC76)')),
+              const SizedBox(height: 12),
+              OutlinedButton.icon(
+                onPressed: () => Navigator.pushNamed(context, '/calculate-fees'),
+                icon: const Icon(Icons.calculate_outlined),
+                label: const Text('Dự Toán Phí Xét Nghiệm (UC53)'),
+              ),
             ],
           ),
         ),
