@@ -5,6 +5,7 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'core/theme/app_colors.dart';
 import 'features/auth/presentation/screens/change_password_screen.dart';
@@ -18,7 +19,6 @@ import 'features/catalog/presentation/screens/service_catalog_screen.dart';
 import 'features/dashboard/presentation/screens/role_dashboard_screen.dart';
 import 'features/doctor-schedule/presentation/screens/doctor_schedule_screen.dart';
 import 'features/patient/presentation/screens/create_guest_profile_screen.dart';
-import 'features/walkin/presentation/register_walkin_screen.dart';
 import 'features/patient/presentation/screens/update_account_screen.dart';
 import 'features/queue/presentation/screens/queue_ticket_screen.dart';
 import 'features/patient/presentation/screens/process_payment_screen.dart';
@@ -29,7 +29,18 @@ import 'features/laboratory/presentation/screens/trace_sample_origin_screen.dart
 import 'features/patient/presentation/screens/test_result_notifications_screen.dart';
 import 'features/patient/presentation/screens/test_history_screen.dart';
 
-void main() {
+// Auxiliary screens from legacy modules
+import 'features/Generate_receipt/presentation/screens/generate_receipt_screen.dart';
+
+
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  
+  // Retrieve authentication token from local storage
+  final prefs = await SharedPreferences.getInstance();
+  final token = prefs.getString('token');
+  
+  // Run root application widget
   runApp(const BmsMobileApp());
 }
 
@@ -53,14 +64,22 @@ class BmsMobileApp extends StatelessWidget {
         scaffoldBackgroundColor: const Color(0xFFF5F7FB),
         fontFamily: 'Roboto',
       ),
+      
+      // Localization delegates and supported locales configuration
+      localizationsDelegates: const [],
+      supportedLocales: const [
+        Locale('vi', 'VN'),
+        Locale('en', 'US'),
+      ],
+      locale: const Locale('vi', 'VN'),
 
-      // Landing introduction screen with sign-in trigger
+      // Landing introduction screen serving as the root entry point
       home: const MainScreen(),
 
       // Centralized named routes registry across Iteration 1 & 2 use cases
       routes: {
-        '/patient/test-history': (context) => const TestHistoryScreen(),
         '/login': (context) => const LoginScreen(),
+        '/home': (context) => const PatientHomeScreen(),
         '/register': (context) => const RegisterScreen(),
         '/forgot-password': (context) => const ForgotPasswordScreen(),
         '/change-password': (context) => const ChangePasswordScreen(),
@@ -77,7 +96,6 @@ class BmsMobileApp extends StatelessWidget {
         '/doctor-schedule': (context) => const DoctorScheduleScreen(),
         '/update-account': (context) => const UpdateAccountScreen(),
         '/book-appointment': (context) => const BookAppointmentScreen(),
-        '/register-walkin': (context) => const RegisterWalkInScreen(),
         '/queue-ticket': (context) => const QueueTicketScreen(),
         '/payment': (context) => const ProcessPaymentScreen(),
         '/checkout': (context) => const ProcessPaymentScreen(),
@@ -94,6 +112,10 @@ class BmsMobileApp extends StatelessWidget {
         '/notifications': (context) => const TestResultNotificationsScreen(),
         '/patient/notifications': (context) => const TestResultNotificationsScreen(),
         '/test-result-notifications': (context) => const TestResultNotificationsScreen(),
+        
+        // Additional routes for auxiliary modules
+        '/generate-receipt': (context) => const GenerateReceiptScreen(),
+        '/patient/test-history': (context) => const TestHistoryScreen(),
       },
     );
   }
@@ -108,7 +130,7 @@ class MainScreen extends StatelessWidget {
     return Scaffold(
       backgroundColor: const Color(0xFFF5F7FB),
       body: Center(
-        child: Padding(
+        child: SingleChildScrollView(
           padding: const EdgeInsets.all(24),
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -203,7 +225,17 @@ class MainScreen extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 12),
-              OutlinedButton.icon(onPressed: () => Navigator.pushNamed(context, '/patient/test-history'), icon: const Icon(Icons.history), label: const Text('Lịch Sử Xét Nghiệm (UC76)')),
+              SizedBox(
+                width: double.infinity,
+                height: 46,
+                child: OutlinedButton.icon(
+                  icon: const Icon(Icons.history),
+                  label: const Text('Lịch Sử Xét Nghiệm (UC76)'),
+                  onPressed: () {
+                    Navigator.pushNamed(context, '/patient/test-history');
+                  },
+                ),
+              ),
             ],
           ),
         ),
