@@ -31,6 +31,26 @@ import 'features/patient/presentation/screens/test_history_screen.dart';
 
 // Auxiliary screens from legacy modules
 import 'features/notification/presentation/screens/notifications_history_screen.dart';
+// Additional screens for appointment management and QR check-in feature set
+import 'features/scanQRcheckin/appointments_list_screen.dart';
+import 'features/scanQRcheckin/home_screen.dart';
+import 'features/scanQRcheckin/qr_checkin_scanner_screen.dart';
+
+/// Application entry point.
+/// Initializes widget bindings, checks for an existing user authentication token,
+/// and determines the initial navigation route accordingly.
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  final prefs = await SharedPreferences.getInstance();
+  final token = prefs.getString('token');
+
+  // Determine initial route dynamically based on token persistence
+  final initialRoute = token != null ? '/patient-home' : '/login';
+
+  runApp(BmsMobileApp(initialRoute: initialRoute));
+// Auxiliary screens from legacy modules
+import 'features/Generate_receipt/presentation/screens/generate_receipt_screen.dart';
+
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -43,9 +63,16 @@ void main() async {
   runApp(const BmsMobileApp());
 }
 
-/// Root application widget establishing MaterialApp configuration, branding theme, and navigation routes.
+/// Root application widget establishing MaterialApp configuration, branding theme,
+/// localization delegates, and centralized navigation routes registry.
 class BmsMobileApp extends StatelessWidget {
-  const BmsMobileApp({super.key});
+  /// The initial route to load upon application startup.
+  final String initialRoute;
+
+  const BmsMobileApp({
+    super.key,
+    this.initialRoute = '/login',
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -72,8 +99,8 @@ class BmsMobileApp extends StatelessWidget {
       ],
       locale: const Locale('vi', 'VN'),
 
-      // Landing introduction screen serving as the root entry point
-      home: const MainScreen(),
+      // Dynamic initial route initialization
+      initialRoute: initialRoute,
 
       // Centralized named routes registry across Iteration 1 & 2 use cases
       routes: {
@@ -108,19 +135,25 @@ class BmsMobileApp extends StatelessWidget {
         '/sample-trace': (context) => const TraceSampleOriginScreen(),
         '/laboratory/sample-trace': (context) => const TraceSampleOriginScreen(),
         '/trace-sample': (context) => const TraceSampleOriginScreen(),
+        
+        // Appointment management and QR check-in routes
+        '/appointments': (context) => const AppointmentsListScreen(),
+        '/scan-qr-checkin': (context) => const QrCheckinScannerScreen(),
         '/notifications': (context) => const TestResultNotificationsScreen(),
         '/patient/notifications': (context) => const TestResultNotificationsScreen(),
         '/test-result-notifications': (context) => const TestResultNotificationsScreen(),
         
         // Additional routes for auxiliary modules
         '/notifications-history': (context) => const NotificationsHistoryScreen(),
+        '/generate-receipt': (context) => const GenerateReceiptScreen(),
         '/patient/test-history': (context) => const TestHistoryScreen(),
       },
     );
   }
 }
 
-/// Initial landing screen presenting the BMS Health brand and entry points.
+/// Initial landing screen presenting the BMS Health brand identity,
+/// core entry points, and quick action navigations.
 class MainScreen extends StatelessWidget {
   const MainScreen({super.key});
 
