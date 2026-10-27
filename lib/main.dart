@@ -19,7 +19,6 @@ import 'features/catalog/presentation/screens/service_catalog_screen.dart';
 import 'features/dashboard/presentation/screens/role_dashboard_screen.dart';
 import 'features/doctor-schedule/presentation/screens/doctor_schedule_screen.dart';
 import 'features/patient/presentation/screens/create_guest_profile_screen.dart';
-import 'features/walkin/presentation/register_walkin_screen.dart';
 import 'features/patient/presentation/screens/update_account_screen.dart';
 import 'features/queue/presentation/screens/queue_ticket_screen.dart';
 import 'features/patient/presentation/screens/process_payment_screen.dart';
@@ -27,6 +26,8 @@ import 'features/patient/presentation/screens/export_test_result_screen.dart';
 import 'features/dashboard/presentation/screens/configure_iot_thresholds_screen.dart';
 import 'features/laboratory/presentation/screens/verify_test_results_screen.dart';
 import 'features/laboratory/presentation/screens/trace_sample_origin_screen.dart';
+import 'features/patient/presentation/screens/test_result_notifications_screen.dart';
+import 'features/patient/presentation/screens/test_history_screen.dart';
 
 // Additional screens for appointment management and QR check-in feature set
 import 'features/scanQRcheckin/appointments_list_screen.dart';
@@ -45,6 +46,19 @@ void main() async {
   final initialRoute = token != null ? '/patient-home' : '/login';
 
   runApp(BmsMobileApp(initialRoute: initialRoute));
+// Auxiliary screens from legacy modules
+import 'features/Generate_receipt/presentation/screens/generate_receipt_screen.dart';
+
+
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  
+  // Retrieve authentication token from local storage
+  final prefs = await SharedPreferences.getInstance();
+  final token = prefs.getString('token');
+  
+  // Run root application widget
+  runApp(const BmsMobileApp());
 }
 
 /// Root application widget establishing MaterialApp configuration, branding theme,
@@ -74,6 +88,14 @@ class BmsMobileApp extends StatelessWidget {
         scaffoldBackgroundColor: const Color(0xFFF5F7FB),
         fontFamily: 'Roboto',
       ),
+      
+      // Localization delegates and supported locales configuration
+      localizationsDelegates: const [],
+      supportedLocales: const [
+        Locale('vi', 'VN'),
+        Locale('en', 'US'),
+      ],
+      locale: const Locale('vi', 'VN'),
 
       supportedLocales: const [
         Locale('vi', 'VN'),
@@ -87,6 +109,7 @@ class BmsMobileApp extends StatelessWidget {
       // Centralized named routes registry across Iteration 1 & 2 use cases
       routes: {
         '/login': (context) => const LoginScreen(),
+        '/home': (context) => const PatientHomeScreen(),
         '/register': (context) => const RegisterScreen(),
         '/forgot-password': (context) => const ForgotPasswordScreen(),
         '/change-password': (context) => const ChangePasswordScreen(),
@@ -103,7 +126,6 @@ class BmsMobileApp extends StatelessWidget {
         '/doctor-schedule': (context) => const DoctorScheduleScreen(),
         '/update-account': (context) => const UpdateAccountScreen(),
         '/book-appointment': (context) => const BookAppointmentScreen(),
-        '/register-walkin': (context) => const RegisterWalkInScreen(),
         '/queue-ticket': (context) => const QueueTicketScreen(),
         '/payment': (context) => const ProcessPaymentScreen(),
         '/checkout': (context) => const ProcessPaymentScreen(),
@@ -121,6 +143,13 @@ class BmsMobileApp extends StatelessWidget {
         // Appointment management and QR check-in routes
         '/appointments': (context) => const AppointmentsListScreen(),
         '/scan-qr-checkin': (context) => const QrCheckinScannerScreen(),
+        '/notifications': (context) => const TestResultNotificationsScreen(),
+        '/patient/notifications': (context) => const TestResultNotificationsScreen(),
+        '/test-result-notifications': (context) => const TestResultNotificationsScreen(),
+        
+        // Additional routes for auxiliary modules
+        '/generate-receipt': (context) => const GenerateReceiptScreen(),
+        '/patient/test-history': (context) => const TestHistoryScreen(),
       },
     );
   }
@@ -136,7 +165,7 @@ class MainScreen extends StatelessWidget {
     return Scaffold(
       backgroundColor: const Color(0xFFF5F7FB),
       body: Center(
-        child: Padding(
+        child: SingleChildScrollView(
           padding: const EdgeInsets.all(24),
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -215,6 +244,30 @@ class MainScreen extends StatelessWidget {
                   label: const Text('Bốc Số Tiếp Nhận (UC27)'),
                   onPressed: () {
                     Navigator.pushNamed(context, '/queue-ticket');
+                  },
+                ),
+              ),
+              const SizedBox(height: 12),
+              SizedBox(
+                width: double.infinity,
+                height: 46,
+                child: OutlinedButton.icon(
+                  icon: const Icon(Icons.notifications_active_outlined),
+                  label: const Text('Thông Báo Kết Quả (UC60)'),
+                  onPressed: () {
+                    Navigator.pushNamed(context, '/patient/notifications');
+                  },
+                ),
+              ),
+              const SizedBox(height: 12),
+              SizedBox(
+                width: double.infinity,
+                height: 46,
+                child: OutlinedButton.icon(
+                  icon: const Icon(Icons.history),
+                  label: const Text('Lịch Sử Xét Nghiệm (UC76)'),
+                  onPressed: () {
+                    Navigator.pushNamed(context, '/patient/test-history');
                   },
                 ),
               ),
