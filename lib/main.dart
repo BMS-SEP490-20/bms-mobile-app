@@ -29,6 +29,8 @@ import 'features/laboratory/presentation/screens/trace_sample_origin_screen.dart
 import 'features/patient/presentation/screens/test_result_notifications_screen.dart';
 import 'features/patient/presentation/screens/test_history_screen.dart';
 
+// Auxiliary screens from legacy modules
+import 'features/notification/presentation/screens/notifications_history_screen.dart';
 // Additional screens for appointment management and QR check-in feature set
 import 'features/scanQRcheckin/appointments_list_screen.dart';
 import 'features/scanQRcheckin/home_screen.dart';
@@ -90,13 +92,7 @@ class BmsMobileApp extends StatelessWidget {
       ),
       
       // Localization delegates and supported locales configuration
-      localizationsDelegates: const [],
-      supportedLocales: const [
-        Locale('vi', 'VN'),
-        Locale('en', 'US'),
-      ],
-      locale: const Locale('vi', 'VN'),
-
+      localizationsDelegates: const [      ],
       supportedLocales: const [
         Locale('vi', 'VN'),
         Locale('en', 'US'),
@@ -148,6 +144,7 @@ class BmsMobileApp extends StatelessWidget {
         '/test-result-notifications': (context) => const TestResultNotificationsScreen(),
         
         // Additional routes for auxiliary modules
+        '/notifications-history': (context) => const NotificationsHistoryScreen(),
         '/generate-receipt': (context) => const GenerateReceiptScreen(),
         '/patient/test-history': (context) => const TestHistoryScreen(),
       },
