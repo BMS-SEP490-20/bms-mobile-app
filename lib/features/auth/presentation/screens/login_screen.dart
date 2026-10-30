@@ -1,4 +1,3 @@
-
 import 'package:flutter/material.dart';
 import 'package:bms_mobile_app/services/bms_auth.dart';
 
@@ -10,15 +9,13 @@ import '../../../catalog/presentation/screens/service_catalog_screen.dart';
 import '../../../dashboard/presentation/screens/role_dashboard_screen.dart';
 import '../../../patient/presentation/screens/create_guest_profile_screen.dart';
 import '../../../patient/presentation/screens/profile_screen.dart';
+import '../../../patient/presentation/screens/test_result_notifications_screen.dart';
 
 /// UC05 - Log In to System (Mobile) Screen.
 /// Issue: I1-019 | BR-019 | Assignee: Hứa Khánh Duy | Reviewer: Võ Gia Huy
 /// User Authentication & Login Screen.
 /// Authenticates patients and medical personnel against the BMS backend using JWT Bearer tokens.
-/// Features:
-/// - Single sign-on credentials verification (username/password).
-/// - Role-based post-login redirection.
-/// - Offline simulated fallback mode for mobile development.
+/// Role ID mapping: 1 = Admin, 2 = Doctor, 3 = Lab, 4 = Receptionist, 5 = Patient.
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
 
@@ -34,10 +31,10 @@ class _LoginScreenState extends State<LoginScreen> {
   final formKey = GlobalKey<FormState>();
 
   final usernameController =
-      TextEditingController(text: 'patient');
+      TextEditingController(text: 'patient_tranvanan');
 
   final passwordController =
-      TextEditingController(text: 'Patient@123');
+      TextEditingController(text: 'Admin@123');
 
   bool obscurePassword = true;
   bool isLoading = false;
@@ -227,6 +224,9 @@ class _LoginScreenState extends State<LoginScreen> {
   Widget buildDashboard() {
     final role = BmsAuth.userRole.isNotEmpty ? BmsAuth.userRole : 'Patient';
     final isReceptionist = BmsAuth.isReceptionist;
+    final canViewResultNotifications = role == 'Patient' ||
+        role == 'LabUser' ||
+        role == 'Manager';
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -368,7 +368,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           color: Color(0xFF059669),
                         ),
                         title: const Text(
-                          'Tạo Hồ Sơ Khách Vãng Lai (UC28)',
+                          'Tạo Hồ Sơ Khách Vãng Lai (UC25)',
                           style: TextStyle(
                             fontWeight: FontWeight.bold,
                             color: Color(0xFF059669),
@@ -383,6 +383,32 @@ class _LoginScreenState extends State<LoginScreen> {
                             context,
                             MaterialPageRoute(
                               builder: (_) => const CreateGuestProfileScreen(),
+                            ),
+                          );
+                        },
+                      ),
+                    ],
+                    if (canViewResultNotifications) ...[
+                      const Divider(height: 1),
+                      ListTile(
+                        leading: const Icon(
+                          Icons.notifications_active_outlined,
+                          color: AppColors.primary,
+                        ),
+                        title: const Text(
+                          'Thông Báo Kết Quả XN (UC60)',
+                          style: TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                        subtitle: const Text(
+                          'Xem thông báo kết quả xét nghiệm và cảnh báo lâm sàng',
+                        ),
+                        trailing: const Icon(Icons.chevron_right),
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) =>
+                                  const TestResultNotificationsScreen(),
                             ),
                           );
                         },
@@ -558,7 +584,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                       const SizedBox(height: 26),
                       const Text(
-                        'Email, SĐT, CCCD hoặc tên đăng nhập',
+                        'Tên đăng nhập hoặc Email',
                         style: TextStyle(
                           color: Color(0xFF475569),
                           fontSize: 13,
@@ -572,12 +598,12 @@ class _LoginScreenState extends State<LoginScreen> {
                         textInputAction: TextInputAction.next,
                         autocorrect: false,
                         decoration: inputDecoration(
-                          hint: 'Nhập email, SĐT, CCCD hoặc username',
+                          hint: 'Nhập tên đăng nhập hoặc email',
                           icon: Icons.person_outline_rounded,
                         ),
                         validator: (value) {
                           if (value == null || value.trim().isEmpty) {
-                            return 'Vui lòng nhập email, SĐT, CCCD hoặc tên đăng nhập.';
+                            return 'Vui lòng nhập tên đăng nhập hoặc email.';
                           }
                           return null;
                         },
@@ -729,13 +755,49 @@ class _LoginScreenState extends State<LoginScreen> {
                         runSpacing: 8,
                         children: [
                           ActionChip(
+                            label: const Text(
+                              'Admin (Role 1)',
+                              style: TextStyle(fontSize: 12),
+                            ),
+                            onPressed: isLoading
+                                ? null
+                                : () => _quickFillAndLogin(
+                                      'admin_bms',
+                                      'Admin@123',
+                                    ),
+                          ),
+                          ActionChip(
+                            label: const Text(
+                              'Bác Sĩ (Role 2)',
+                              style: TextStyle(fontSize: 12),
+                            ),
+                            onPressed: isLoading
+                                ? null
+                                : () => _quickFillAndLogin(
+                                      'dr_nguyenminh',
+                                      'Admin@123',
+                                    ),
+                          ),
+                          ActionChip(
+                            label: const Text(
+                              'KTV Lab (Role 3)',
+                              style: TextStyle(fontSize: 12),
+                            ),
+                            onPressed: isLoading
+                                ? null
+                                : () => _quickFillAndLogin(
+                                      'tech_quochung',
+                                      'Admin@123',
+                                    ),
+                          ),
+                          ActionChip(
                             avatar: const Icon(
                               Icons.support_agent_rounded,
                               size: 16,
                               color: Color(0xFF059669),
                             ),
                             label: const Text(
-                              'Lễ Tân (Receptionist)',
+                              'Lễ Tân (Role 4)',
                               style: TextStyle(
                                 fontSize: 12,
                                 fontWeight: FontWeight.bold,
@@ -752,49 +814,13 @@ class _LoginScreenState extends State<LoginScreen> {
                           ),
                           ActionChip(
                             label: const Text(
-                              'Bệnh Nhân (Patient)',
+                              'Bệnh Nhân (Role 5)',
                               style: TextStyle(fontSize: 12),
                             ),
                             onPressed: isLoading
                                 ? null
                                 : () => _quickFillAndLogin(
                                       'patient_tranvanan',
-                                      'Admin@123',
-                                    ),
-                          ),
-                          ActionChip(
-                            label: const Text(
-                              'Bác Sĩ',
-                              style: TextStyle(fontSize: 12),
-                            ),
-                            onPressed: isLoading
-                                ? null
-                                : () => _quickFillAndLogin(
-                                      'dr_nguyenminh',
-                                      'Admin@123',
-                                    ),
-                          ),
-                          ActionChip(
-                            label: const Text(
-                              'KTV Lab',
-                              style: TextStyle(fontSize: 12),
-                            ),
-                            onPressed: isLoading
-                                ? null
-                                : () => _quickFillAndLogin(
-                                      'tech_quochung',
-                                      'Admin@123',
-                                    ),
-                          ),
-                          ActionChip(
-                            label: const Text(
-                              'Admin',
-                              style: TextStyle(fontSize: 12),
-                            ),
-                            onPressed: isLoading
-                                ? null
-                                : () => _quickFillAndLogin(
-                                      'admin_bms',
                                       'Admin@123',
                                     ),
                           ),
@@ -852,4 +878,3 @@ class _LoginScreenState extends State<LoginScreen> {
     return isLoggedIn ? buildDashboard() : buildLoginForm();
   }
 }
-
