@@ -32,30 +32,30 @@ class BmsAuth {
             '')
         .toString()
         .trim();
-    final roleId = user!['roleId'] ?? user!['RoleId'];
-    if (roleId == 5 ||
-        rawRole.toLowerCase().contains('recept') ||
-        rawRole.toLowerCase().contains('letan')) {
-      return 'Receptionist';
-    }
+    final roleId = int.tryParse((user!['roleId'] ?? user!['RoleId'] ?? '').toString());
     if (roleId == 1 || rawRole.toLowerCase().contains('admin')) {
       return 'Admin';
     }
-    if (roleId == 2 ||
-        rawRole.toLowerCase().contains('head') ||
-        rawRole.toLowerCase().contains('manager')) {
-      return 'Manager';
+    if (roleId == 2 || rawRole.toLowerCase().contains('doctor') || rawRole.toLowerCase().contains('bacsi')) {
+      return 'Doctor';
     }
     if (roleId == 3 ||
         rawRole.toLowerCase().contains('lab') ||
         rawRole.toLowerCase().contains('tech')) {
       return 'LabUser';
     }
-    if (roleId == 4 || rawRole.toLowerCase().contains('doctor')) {
-      return 'Doctor';
+    if (roleId == 4 ||
+        rawRole.toLowerCase().contains('recept') ||
+        rawRole.toLowerCase().contains('letan')) {
+      return 'Receptionist';
     }
-    if (roleId == 6 || rawRole.toLowerCase().contains('patient')) {
+    if (roleId == 5 || rawRole.toLowerCase().contains('patient')) {
       return 'Patient';
+    }
+    if (roleId == 6 ||
+        rawRole.toLowerCase().contains('head') ||
+        rawRole.toLowerCase().contains('manager')) {
+      return 'Manager';
     }
     return rawRole;
   }
