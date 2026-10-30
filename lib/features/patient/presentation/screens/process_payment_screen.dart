@@ -433,13 +433,15 @@ class _ProcessPaymentScreenState extends State<ProcessPaymentScreen> {
         ),
         child: Row(
           children: [
-            Radio<String>(
-              value: id,
+            RadioGroup<String>(
               groupValue: _paymentMethod,
-              activeColor: const Color(0xFF0353E9),
               onChanged: (val) {
                 if (val != null) setState(() => _paymentMethod = val);
               },
+              child: Radio<String>(
+                value: id,
+                activeColor: const Color(0xFF0353E9),
+              ),
             ),
             Icon(icon, size: 20, color: isSelected ? const Color(0xFF0353E9) : const Color(0xFF6B7280)),
             const SizedBox(width: 10),

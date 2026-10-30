@@ -1,6 +1,8 @@
 /// Specimen Origin Traceability models (UC77 / Trace Sample Origin / Issue I3-090).
 /// Conforms to: Production Engineering Standards & AGENTS-CODE.md.
 
+library;
+
 class TraceNodeModel {
   final String nodeType;
   final String title;

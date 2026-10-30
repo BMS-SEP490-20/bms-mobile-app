@@ -222,7 +222,7 @@ class _BookAppointmentPageState extends State<BookAppointmentPage> {
           const Text('Bác sĩ', style: TextStyle(fontWeight: FontWeight.w600)),
           const SizedBox(height: 8),
           DropdownButtonFormField<String>(
-            value: _doctorId,
+            initialValue: _doctorId,
             decoration: InputDecoration(
               border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
               contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),

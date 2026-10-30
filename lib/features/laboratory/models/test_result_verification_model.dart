@@ -1,6 +1,8 @@
 /// Technical Test Result Verification models (UC72 / Verify Test Results / Issue I3-075).
 /// Conforms to: Production Engineering Standards & AGENTS-CODE.md.
 
+library;
+
 class VerificationCheckItemModel {
   final String checkName;
   final String status;
