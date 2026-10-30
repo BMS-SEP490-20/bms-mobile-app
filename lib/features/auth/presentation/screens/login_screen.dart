@@ -558,7 +558,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                       const SizedBox(height: 26),
                       const Text(
-                        'Email, SĐT, CCCD hoặc tên đăng nhập',
+                        'Tên đăng nhập hoặc Email',
                         style: TextStyle(
                           color: Color(0xFF475569),
                           fontSize: 13,
@@ -572,12 +572,12 @@ class _LoginScreenState extends State<LoginScreen> {
                         textInputAction: TextInputAction.next,
                         autocorrect: false,
                         decoration: inputDecoration(
-                          hint: 'Nhập email, SĐT, CCCD hoặc username',
+                          hint: 'Nhập email hoặc username',
                           icon: Icons.person_outline_rounded,
                         ),
                         validator: (value) {
                           if (value == null || value.trim().isEmpty) {
-                            return 'Vui lòng nhập email, SĐT, CCCD hoặc tên đăng nhập.';
+                            return 'Vui lòng nhập email hoặc username.';
                           }
                           return null;
                         },
