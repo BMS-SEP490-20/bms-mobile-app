@@ -34,8 +34,18 @@ class _TestResultNotificationsScreenState extends State<TestResultNotificationsS
     if (widget.patientId != null && widget.patientId!.isNotEmpty) {
       return widget.patientId!;
     }
-    final userId = BmsAuth.user?['userId'] ?? BmsAuth.user?['patientId'] ?? BmsAuth.user?['id'];
-    return userId?.toString() ?? 'USR-PAT-01';
+    final userId = BmsAuth.user?['patientId'] ??
+        BmsAuth.user?['patientCode'] ??
+        BmsAuth.user?['userId'] ??
+        BmsAuth.user?['id'];
+    return userId?.toString() ?? '';
+  }
+
+  bool get _isAuthorizedPatient {
+    final roleId = BmsAuth.user?['roleId'];
+    final roleName = (BmsAuth.user?['roleName'] ?? BmsAuth.user?['role'] ?? '').toString().toLowerCase();
+    if (roleId == null && roleName.isEmpty) return true;
+    return roleId == 6 || roleId == '6' || roleName.contains('patient') || roleName.contains('bệnh nhân');
   }
 
   @override
@@ -55,6 +65,22 @@ class _TestResultNotificationsScreenState extends State<TestResultNotificationsS
   }
 
   Future<void> _loadData() async {
+    if (!_isAuthorizedPatient) {
+      setState(() {
+        _isLoading = false;
+        _errorMessage = 'Chức năng nhận thông báo kết quả xét nghiệm trên ứng dụng di động chỉ dành cho vai trò Bệnh nhân (Patient).';
+      });
+      return;
+    }
+
+    if (effectivePatientId.isEmpty) {
+      setState(() {
+        _isLoading = false;
+        _errorMessage = 'Vui lòng đăng nhập tài khoản bệnh nhân để xem thông báo kết quả xét nghiệm.';
+      });
+      return;
+    }
+
     setState(() {
       _isLoading = true;
       _errorMessage = null;
@@ -74,7 +100,7 @@ class _TestResultNotificationsScreenState extends State<TestResultNotificationsS
     } catch (e) {
       if (mounted) {
         setState(() {
-          _errorMessage = 'Không thể tải thông báo kết quả. Vui lòng thử lại.';
+          _errorMessage = e.toString().replaceFirst('Exception: ', '');
           _isLoading = false;
         });
       }
@@ -95,41 +121,52 @@ class _TestResultNotificationsScreenState extends State<TestResultNotificationsS
   Future<void> _handleMarkAsRead(TestResultNotificationModel notification) async {
     if (notification.isRead) return;
 
-    final success = await _repository.markAsRead(notification.notificationId);
-    if (success && mounted) {
-      setState(() {
-        final index = _notifications.indexWhere((n) => n.notificationId == notification.notificationId);
-        if (index != -1) {
-          final old = _notifications[index];
-          _notifications[index] = TestResultNotificationModel(
-            id: old.id,
-            notificationId: old.notificationId,
-            testOrderId: old.testOrderId,
-            specimenBarcode: old.specimenBarcode,
-            patientId: old.patientId,
-            patientName: old.patientName,
-            patientPhone: old.patientPhone,
-            patientEmail: old.patientEmail,
-            title: old.title,
-            message: old.message,
-            channel: old.channel,
-            priority: old.priority,
-            status: 'Read',
-            isCriticalPanicValue: old.isCriticalPanicValue,
-            criticalParameters: old.criticalParameters,
-            requiresImmediateAction: old.requiresImmediateAction,
-            clinicalRecommendation: old.clinicalRecommendation,
-            testPackageName: old.testPackageName,
-            sentAt: old.sentAt,
-            deliveredAt: old.deliveredAt,
-            readAt: DateTime.now().toIso8601String(),
-            failureReason: old.failureReason,
-            retryCount: old.retryCount,
-            createdAt: old.createdAt,
-          );
-          if (_unreadCount > 0) _unreadCount--;
-        }
-      });
+    try {
+      final success = await _repository.markAsRead(notification.notificationId);
+      if (success && mounted) {
+        setState(() {
+          final index = _notifications.indexWhere((n) => n.notificationId == notification.notificationId);
+          if (index != -1) {
+            final old = _notifications[index];
+            _notifications[index] = TestResultNotificationModel(
+              id: old.id,
+              notificationId: old.notificationId,
+              testOrderId: old.testOrderId,
+              specimenBarcode: old.specimenBarcode,
+              patientId: old.patientId,
+              patientName: old.patientName,
+              patientPhone: old.patientPhone,
+              patientEmail: old.patientEmail,
+              title: old.title,
+              message: old.message,
+              channel: old.channel,
+              priority: old.priority,
+              status: 'Read',
+              isCriticalPanicValue: old.isCriticalPanicValue,
+              criticalParameters: old.criticalParameters,
+              requiresImmediateAction: old.requiresImmediateAction,
+              clinicalRecommendation: old.clinicalRecommendation,
+              testPackageName: old.testPackageName,
+              sentAt: old.sentAt,
+              deliveredAt: old.deliveredAt,
+              readAt: DateTime.now().toIso8601String(),
+              failureReason: old.failureReason,
+              retryCount: old.retryCount,
+              createdAt: old.createdAt,
+            );
+            if (_unreadCount > 0) _unreadCount--;
+          }
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(e.toString().replaceFirst('Exception: ', '')),
+            backgroundColor: const Color(0xFFDC2626),
+          ),
+        );
+      }
     }
   }
 

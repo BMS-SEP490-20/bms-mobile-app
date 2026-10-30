@@ -32,11 +32,12 @@ class TestResultNotificationRepository {
 
   /// Fetches all test result notifications for a specific patient.
   Future<List<TestResultNotificationModel>> getPatientNotifications(String patientId) async {
+    String? lastApiError;
     for (final base in _bases) {
       try {
         final res = await http
             .get(
-              Uri.parse('$base/api/notifications/test-results/patient/$patientId'),
+              Uri.parse('$base/api/notifications/test-results/patient/${Uri.encodeComponent(patientId)}'),
               headers: _headers,
             )
             .timeout(const Duration(seconds: 8));
@@ -49,14 +50,25 @@ class TestResultNotificationRepository {
                 .toList();
             return list;
           }
+          return const [];
+        } else if (res.statusCode >= 400) {
+          try {
+            final body = jsonDecode(res.body);
+            lastApiError = body['message']?.toString();
+          } catch (_) {}
+          lastApiError ??= 'Không thể tải danh sách thông báo (Mã lỗi: ${res.statusCode}).';
+          break;
         }
       } catch (_) {
         // Fallback to next host
       }
     }
 
-    // Resilient offline fallback seeds
-    return _getFallbackSeeds(patientId);
+    if (lastApiError != null) {
+      throw Exception(lastApiError);
+    }
+
+    throw Exception('Không thể kết nối máy chủ xét nghiệm để tải thông báo kết quả.');
   }
 
   /// Fetches unread notification count for badge display.
@@ -65,7 +77,7 @@ class TestResultNotificationRepository {
       try {
         final res = await http
             .get(
-              Uri.parse('$base/api/notifications/test-results/patient/$patientId/unread-count'),
+              Uri.parse('$base/api/notifications/test-results/patient/${Uri.encodeComponent(patientId)}/unread-count'),
               headers: _headers,
             )
             .timeout(const Duration(seconds: 5));
@@ -80,82 +92,38 @@ class TestResultNotificationRepository {
         // Continue fallback
       }
     }
-    return 1;
+    return 0;
   }
 
   /// Marks a specific notification as read.
   Future<bool> markAsRead(String notificationId) async {
+    String? lastApiError;
     for (final base in _bases) {
       try {
         final res = await http
             .put(
-              Uri.parse('$base/api/notifications/test-results/$notificationId/read'),
+              Uri.parse('$base/api/notifications/test-results/${Uri.encodeComponent(notificationId)}/read'),
               headers: _headers,
             )
             .timeout(const Duration(seconds: 5));
 
         if (res.statusCode == 200) {
           return true;
+        } else if (res.statusCode >= 400) {
+          try {
+            final body = jsonDecode(res.body);
+            lastApiError = body['message']?.toString();
+          } catch (_) {}
+          lastApiError ??= 'Không thể cập nhật trạng thái đã đọc (Mã lỗi: ${res.statusCode}).';
+          break;
         }
       } catch (_) {
         // Continue
       }
     }
-    return true;
-  }
-
-  List<TestResultNotificationModel> _getFallbackSeeds(String patientId) {
-    return [
-      TestResultNotificationModel(
-        id: '1',
-        notificationId: 'NOTIF-261021-002',
-        testOrderId: 'ORD-20261021-002',
-        specimenBarcode: 'SMP-261021-002',
-        patientId: patientId,
-        patientName: 'Bệnh Nhân BMS',
-        patientPhone: '0987654321',
-        title: '[CẢNH BÁO NGUY HIỂM] Chỉ số Glucose & HbA1c vượt ngưỡng hoảng loạn',
-        message: 'CẢNH BÁO Y KHOA: Kết quả xét nghiệm đường huyết đạt mức 29.4 mmol/L (Ngưỡng hoảng loạn > 25.0 mmol/L). Yêu cầu liên hệ khẩn cấp với bác sĩ điều trị hoặc đến ngay phòng cấp cứu gần nhất.',
-        channel: 'All',
-        priority: 'Critical',
-        status: 'Delivered',
-        isCriticalPanicValue: true,
-        criticalParameters: [
-          'Glucose huyết tương: 29.4 mmol/L [Báo động nguy kịch - Chuẩn 3.9 - 6.4]',
-          'HbA1c: 12.8% [Rất cao - Nguy cơ nhiễm toan ceton do đái tháo đường]'
-        ],
-        requiresImmediateAction: true,
-        clinicalRecommendation: 'Nhập viện cấp cứu khẩn cấp để bù dịch và truyền Insulin tĩnh mạch kiểm soát toan chuyển hóa.',
-        testPackageName: 'Gói Đánh Giá Rối Loạn Đường Huyết Nâng Cao',
-        sentAt: DateTime.now().subtract(const Duration(minutes: 45)).toIso8601String(),
-        deliveredAt: DateTime.now().subtract(const Duration(minutes: 44)).toIso8601String(),
-        retryCount: 0,
-        createdAt: DateTime.now().subtract(const Duration(minutes: 45)).toIso8601String(),
-      ),
-      TestResultNotificationModel(
-        id: '2',
-        notificationId: 'NOTIF-261021-001',
-        testOrderId: 'ORD-20261021-001',
-        specimenBarcode: 'SMP-261021-001',
-        patientId: patientId,
-        patientName: 'Bệnh Nhân BMS',
-        patientPhone: '0912345678',
-        title: 'Kết quả xét nghiệm Tổng Quát Định Kỳ đã hoàn thành',
-        message: 'Hồ sơ xét nghiệm (Mã đơn: ORD-20261021-001) đã được duyệt y khoa bởi Bác sĩ chuyên khoa. Các chỉ số đều nằm trong giới hạn an toàn.',
-        channel: 'All',
-        priority: 'Normal',
-        status: 'Read',
-        isCriticalPanicValue: false,
-        criticalParameters: [],
-        requiresImmediateAction: false,
-        clinicalRecommendation: 'Tái khám định kỳ sau 6 tháng. Giữ chế độ ăn uống lành mạnh.',
-        testPackageName: 'Gói Xét Nghiệm Tổng Quát Toàn Diện',
-        sentAt: DateTime.now().subtract(const Duration(hours: 3)).toIso8601String(),
-        deliveredAt: DateTime.now().subtract(const Duration(hours: 2, minutes: 58)).toIso8601String(),
-        readAt: DateTime.now().subtract(const Duration(hours: 1)).toIso8601String(),
-        retryCount: 0,
-        createdAt: DateTime.now().subtract(const Duration(hours: 3)).toIso8601String(),
-      ),
-    ];
+    if (lastApiError != null) {
+      throw Exception(lastApiError);
+    }
+    throw Exception('Không thể kết nối máy chủ để cập nhật trạng thái thông báo.');
   }
 }
