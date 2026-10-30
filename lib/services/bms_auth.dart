@@ -22,9 +22,29 @@ class BmsAuth {
   static bool get isLoggedIn =>
       accessToken != null && accessToken!.isNotEmpty;
 
-  /// Returns normalized role name of the currently logged-in user (e.g. 'Receptionist', 'Patient', 'Doctor', 'LabUser', 'Admin').
+  /// Returns normalized role name of the currently logged-in user
+  /// (1 = Admin, 2 = Doctor, 3 = LabUser, 4 = Receptionist, 5 = Patient, 6 = Manager).
   static String get userRole {
     if (!isLoggedIn || user == null) return '';
+    final roleId = int.tryParse(
+      (user!['roleId'] ?? user!['RoleId'] ?? user!['role_id'] ?? '').toString(),
+    );
+    switch (roleId) {
+      case 1:
+        return 'Admin';
+      case 2:
+        return 'Doctor';
+      case 3:
+        return 'LabUser';
+      case 4:
+        return 'Receptionist';
+      case 5:
+      case 9:
+        return 'Patient';
+      case 6:
+        return 'Manager';
+    }
+
     final rawRole = (user!['roleName'] ??
             user!['role'] ??
             user!['RoleName'] ??
@@ -32,35 +52,19 @@ class BmsAuth {
             '')
         .toString()
         .trim();
-    final roleId = int.tryParse((user!['roleId'] ?? user!['RoleId'] ?? '').toString());
-    if (roleId == 1 || rawRole.toLowerCase().contains('admin')) {
-      return 'Admin';
-    }
-    if (roleId == 2 || rawRole.toLowerCase().contains('doctor') || rawRole.toLowerCase().contains('bacsi')) {
-      return 'Doctor';
-    }
-    if (roleId == 3 ||
-        rawRole.toLowerCase().contains('lab') ||
-        rawRole.toLowerCase().contains('tech')) {
-      return 'LabUser';
-    }
-    if (roleId == 4 ||
-        rawRole.toLowerCase().contains('recept') ||
-        rawRole.toLowerCase().contains('letan')) {
+    final lower = rawRole.toLowerCase();
+    if (lower.contains('admin')) return 'Admin';
+    if (lower.contains('doctor') || lower.contains('bacsi')) return 'Doctor';
+    if (lower.contains('lab') || lower.contains('tech')) return 'LabUser';
+    if (lower.contains('recept') || lower.contains('letan')) {
       return 'Receptionist';
     }
-    if (roleId == 5 || rawRole.toLowerCase().contains('patient')) {
-      return 'Patient';
-    }
-    if (roleId == 6 ||
-        rawRole.toLowerCase().contains('head') ||
-        rawRole.toLowerCase().contains('manager')) {
-      return 'Manager';
-    }
+    if (lower.contains('patient')) return 'Patient';
+    if (lower.contains('head') || lower.contains('manager')) return 'Manager';
     return rawRole;
   }
 
-  /// Returns true ONLY when the user is authenticated with the Receptionist role.
+  /// Returns true ONLY when the user is authenticated with the Receptionist role (RoleId = 4).
   static bool get isReceptionist =>
       isLoggedIn && userRole.toLowerCase() == 'receptionist';
 
@@ -98,26 +102,34 @@ class BmsAuth {
           }
         } catch (_) {}
 
-        final token = (data['accessToken'] ?? data['token'])?.toString();
+        final payload = data['data'] is Map<String, dynamic>
+            ? Map<String, dynamic>.from(data['data'])
+            : data;
+        final token = (payload['accessToken'] ?? payload['token'])?.toString();
 
         if (response.statusCode >= 200 &&
             response.statusCode < 300 &&
             token != null &&
             token.isNotEmpty) {
           accessToken = token;
-          refreshToken = data['refreshToken']?.toString();
+          refreshToken = payload['refreshToken']?.toString();
           ApiClient.userToken = token;
 
-          user = data['user'] is Map<String, dynamic>
-              ? Map<String, dynamic>.from(data['user'])
+          user = payload['user'] is Map<String, dynamic>
+              ? Map<String, dynamic>.from(payload['user'])
               : {};
+          final canonicalRole = userRole;
+          if (canonicalRole.isNotEmpty) {
+            user!['role'] = canonicalRole;
+            user!['roleName'] = canonicalRole;
+          }
 
           return {
             'success': true,
             'message': 'Đăng nhập thành công.',
             'accessToken': accessToken,
             'user': user,
-            'role': userRole,
+            'role': canonicalRole,
           };
         }
 

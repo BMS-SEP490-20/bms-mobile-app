@@ -54,18 +54,17 @@ class _HomeScreenState extends State<HomeScreen> {
       case 'admin':
       case 'administrator':
         return 1;
-      case 'doctor':
+      case 'manager':
         return 2;
-      case 'lab':
+      case 'doctor':
+        return 3;
       case 'labuser':
       case 'lab_user':
       case 'laboratory user':
-        return 3;
-      case 'receptionist':
         return 4;
       case 'patient':
         return 5;
-      case 'manager':
+      case 'receptionist':
         return 6;
       default:
         return null;
@@ -73,8 +72,8 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   bool get _isPatient => _normalizedRoleId == 5 || _normalizedRoleId == null;
-  bool get _isReceptionist => _normalizedRoleId == 4;
-  bool get _isManager => _normalizedRoleId == 6;
+  bool get _isReceptionist => _normalizedRoleId == 6;
+  bool get _isManager => _normalizedRoleId == 2;
   bool get _isAdmin => _normalizedRoleId == 1;
 
   // BUSINESS RULE: Role-based mobile features permission matrix
@@ -95,15 +94,15 @@ class _HomeScreenState extends State<HomeScreen> {
       case 1:
         return 'Quản trị viên (Admin)';
       case 2:
-        return 'Bác sĩ (Doctor)';
+        return 'Quản lý phòng khám (Manager)';
       case 3:
-        return 'Kỹ thuật viên xét nghiệm (Lab User)';
+        return 'Bác sĩ (Doctor)';
       case 4:
-        return 'Lễ tân tiếp đón (Receptionist)';
+        return 'Kỹ thuật viên xét nghiệm (Lab User)';
       case 5:
         return 'Bệnh nhân (Patient)';
       case 6:
-        return 'Quản lý phòng khám (Manager)';
+        return 'Lễ tân tiếp đón (Receptionist)';
       default:
         return _user?['role']?.toString() ?? 'Bệnh nhân (Patient)';
     }

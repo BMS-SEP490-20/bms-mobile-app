@@ -91,15 +91,15 @@ class _UpdateAccountScreenState extends State<UpdateAccountScreen> {
       case 1:
         return 'Quản trị viên (Admin)';
       case 2:
-        return 'Bác sĩ (Doctor)';
+        return 'Quản lý (Manager)';
       case 3:
-        return 'Kỹ thuật viên xét nghiệm (Lab User)';
+        return 'Bác sĩ (Doctor)';
       case 4:
-        return 'Lễ tân (Receptionist)';
+        return 'Kỹ thuật viên xét nghiệm (Lab User)';
       case 5:
         return 'Bệnh nhân (Patient)';
       case 6:
-        return 'Quản lý (Manager)';
+        return 'Lễ tân (Receptionist)';
       default:
         return role?.toString().toUpperCase() ?? 'Bệnh nhân';
     }
