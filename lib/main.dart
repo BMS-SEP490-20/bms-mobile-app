@@ -35,6 +35,7 @@ import 'features/notification/presentation/screens/notifications_history_screen.
 import 'features/scanQRcheckin/appointments_list_screen.dart';
 import 'features/scanQRcheckin/home_screen.dart';
 import 'features/scanQRcheckin/qr_checkin_scanner_screen.dart';
+import 'features/Generate_receipt/presentation/screens/generate_receipt_screen.dart';
 
 /// Application entry point.
 /// Initializes widget bindings, checks for an existing user authentication token,
@@ -48,19 +49,6 @@ void main() async {
   final initialRoute = token != null ? '/patient-home' : '/login';
 
   runApp(BmsMobileApp(initialRoute: initialRoute));
-// Auxiliary screens from legacy modules
-import 'features/Generate_receipt/presentation/screens/generate_receipt_screen.dart';
-
-
-void main() async {
-  WidgetsFlutterBinding.ensureInitialized();
-  
-  // Retrieve authentication token from local storage
-  final prefs = await SharedPreferences.getInstance();
-  final token = prefs.getString('token');
-  
-  // Run root application widget
-  runApp(const BmsMobileApp());
 }
 
 /// Root application widget establishing MaterialApp configuration, branding theme,

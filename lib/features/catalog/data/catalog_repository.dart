@@ -49,13 +49,14 @@ class CatalogRepository {
     double? minPrice,
     double? maxPrice,
     bool? isActive = true,
-    String sortBy = 'packageName',
+    String sortBy = 'name',
     String sortDir = 'asc',
     int page = 1,
     int pageSize = 20,
   }) async {
+    final normalizedSortBy = sortBy == 'packageName' ? 'name' : sortBy;
     final query = <String, String>{
-      'sortBy': sortBy,
+      'sortBy': normalizedSortBy,
       'sortDir': sortDir,
       'page': page.toString(),
       'pageSize': pageSize.toString(),
