@@ -1229,9 +1229,9 @@ class _CreateGuestProfileFormSheetState
                       ),
                       validator: (val) {
                         final v = val?.trim() ?? '';
-                        final reg = RegExp(r'^(\+84|0)[0-9]{8,10}$');
+                        final reg = RegExp(r'^0[35789][0-9]{8}$');
                         if (!reg.hasMatch(v)) {
-                          return 'SĐT chuẩn VN (09xxxxxxxx)';
+                          return 'SĐT 10 số (03/05/07/08/09...)';
                         }
                         return null;
                       },
@@ -1243,15 +1243,15 @@ class _CreateGuestProfileFormSheetState
                       controller: _identityCtrl,
                       keyboardType: TextInputType.number,
                       decoration: _inputDeco(
-                        label: 'Số CCCD / CMND',
-                        hint: '9-12 chữ số',
+                        label: 'Số CCCD (12 chữ số)',
+                        hint: '12 chữ số',
                         icon: Icons.credit_card_outlined,
                       ),
                       validator: (val) {
                         final v = val?.trim() ?? '';
                         if (v.isEmpty) return null;
-                        if (!RegExp(r'^[0-9]{9,12}$').hasMatch(v)) {
-                          return 'CCCD gồm 9-12 số';
+                        if (!RegExp(r'^[0-9]{12}$').hasMatch(v)) {
+                          return 'CCCD phải gồm đúng 12 số';
                         }
                         return null;
                       },
