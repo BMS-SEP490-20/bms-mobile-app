@@ -74,8 +74,6 @@ class BmsAuth {
     required String usernameOrEmail,
     required String password,
   }) async {
-    Object? lastError;
-
     for (final base in _candidateBaseUrls) {
       try {
         final response = await http
@@ -123,22 +121,40 @@ class BmsAuth {
           };
         }
 
+        String errMsg;
+        if (response.statusCode == 401) {
+          errMsg = (data['message'] ??
+                  data['title'] ??
+                  'Tên đăng nhập hoặc mật khẩu không chính xác. Vui lòng thử lại!')
+              .toString();
+        } else if (response.statusCode == 423) {
+          errMsg = (data['message'] ??
+                  data['title'] ??
+                  'Tài khoản tạm thời bị khóa do nhập sai mật khẩu quá 5 lần liên tiếp. Vui lòng thử lại sau.')
+              .toString();
+        } else {
+          errMsg = (data['message'] ??
+                  data['title'] ??
+                  data['detail'] ??
+                  data['error'] ??
+                  'Đăng nhập thất bại. Mã lỗi: ${response.statusCode}')
+              .toString();
+        }
+
         return {
           'success': false,
-          'message': data['message'] ??
-              data['detail'] ??
-              data['error'] ??
-              'Đăng nhập thất bại. Mã lỗi: ${response.statusCode}',
+          'message': errMsg,
+          'statusCode': response.statusCode,
+          'code': data['code'],
+          'retryAfterMinutes': data['retryAfterMinutes'],
         };
-      } catch (e) {
-        lastError = e;
-      }
+      } catch (_) {}
     }
 
     return {
       'success': false,
       'message':
-          'Không thể kết nối API ($lastError). Kiểm tra server và địa chỉ API.',
+          'Không thể kết nối đến máy chủ BMS. Vui lòng kiểm tra dịch vụ mạng hoặc địa chỉ máy chủ.',
     };
   }
 
