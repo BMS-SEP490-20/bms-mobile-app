@@ -36,6 +36,7 @@ import 'features/notification/presentation/screens/notifications_history_screen.
 import 'features/scanQRcheckin/appointments_list_screen.dart';
 import 'features/Generate_receipt/presentation/screens/generate_receipt_screen.dart';
 import 'features/scanQRcheckin/qr_checkin_scanner_screen.dart';
+import 'features/Generate_receipt/presentation/screens/generate_receipt_screen.dart';
 
 /// Application entry point.
 /// Initializes widget bindings, checks for an existing user authentication token,
