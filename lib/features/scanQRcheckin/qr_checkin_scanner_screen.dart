@@ -1,7 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
-import '../services/appointment_service.dart';
+import 'package:bms_mobile_app/services/appointment_service.dart';
 
 /// Mobile QR Code Scanner Screen for express patient check-in.
 /// 

@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
-import '../services/receipt_service.dart';
-import '../services/appointment_service.dart';
+import 'package:bms_mobile_app/services/receipt_service.dart';
+import 'package:bms_mobile_app/services/appointment_service.dart';
 
 /// Screen for Receptionists to calculate service fees and generate itemized electronic payment receipts.
 /// Supports automated fee calculation, package selection, and electronic invoice display.

@@ -1,5 +1,7 @@
 /// Domain models for UC27 – Reception Queue Management (Flutter).
 
+library;
+
 class QueueTicketModel {
   final String id;
   final String ticketNumber;

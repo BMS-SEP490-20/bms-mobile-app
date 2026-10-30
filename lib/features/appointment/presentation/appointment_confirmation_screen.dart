@@ -84,7 +84,6 @@ class _AppointmentConfirmationScreenState
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
 
     if (_isLoading) {
       return Scaffold(

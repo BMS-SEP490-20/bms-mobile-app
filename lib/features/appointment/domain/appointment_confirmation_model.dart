@@ -1,6 +1,8 @@
 /// Domain model for UC22 – Appointment Confirmation & Notification details (Flutter).
 /// Consumes GET /api/appointments/{id}/confirmation.
 
+library;
+
 class TimelineItemModel {
   final String title;
   final String scheduledTime;

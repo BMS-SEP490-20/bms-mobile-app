@@ -165,7 +165,7 @@ class AppointmentRepository {
     final res = await _post('/api/appointments/$appointmentId/notify', {
       'channel': channel,
       'type': type,
-      if (customMessage != null) 'customMessage': customMessage,
+      'customMessage': ?customMessage,
     });
     return res.statusCode == 200;
   }

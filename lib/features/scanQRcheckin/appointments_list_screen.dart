@@ -1,7 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:qr_flutter/qr_flutter.dart';
-import '../services/appointment_service.dart';
+import 'package:bms_mobile_app/services/appointment_service.dart';
 import 'appointment_form_screen.dart';
 import 'qr_checkin_scanner_screen.dart';
 

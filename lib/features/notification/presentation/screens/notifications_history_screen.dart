@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
-import '../services/notification_service.dart';
+import 'package:bms_mobile_app/services/notification_service.dart';
 
 /// Screen displaying past system notifications (appointment reminders, result readiness, system alerts)
 /// for Patient, Doctor, and Staff roles.

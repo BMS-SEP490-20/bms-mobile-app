@@ -5,6 +5,7 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'core/theme/app_colors.dart';
@@ -33,34 +34,23 @@ import 'features/patient/presentation/screens/test_history_screen.dart';
 import 'features/notification/presentation/screens/notifications_history_screen.dart';
 // Additional screens for appointment management and QR check-in feature set
 import 'features/scanQRcheckin/appointments_list_screen.dart';
-import 'features/scanQRcheckin/home_screen.dart';
+import 'features/Generate_receipt/presentation/screens/generate_receipt_screen.dart';
 import 'features/scanQRcheckin/qr_checkin_scanner_screen.dart';
 
 /// Application entry point.
 /// Initializes widget bindings, checks for an existing user authentication token,
 /// and determines the initial navigation route accordingly.
-void main() async {
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   final prefs = await SharedPreferences.getInstance();
   final token = prefs.getString('token');
 
   // Determine initial route dynamically based on token persistence
-  final initialRoute = token != null ? '/patient-home' : '/login';
+  final initialRoute = token != null && token.isNotEmpty
+      ? '/patient-home'
+      : '/login';
 
   runApp(BmsMobileApp(initialRoute: initialRoute));
-// Auxiliary screens from legacy modules
-import 'features/Generate_receipt/presentation/screens/generate_receipt_screen.dart';
-
-
-void main() async {
-  WidgetsFlutterBinding.ensureInitialized();
-  
-  // Retrieve authentication token from local storage
-  final prefs = await SharedPreferences.getInstance();
-  final token = prefs.getString('token');
-  
-  // Run root application widget
-  runApp(const BmsMobileApp());
 }
 
 /// Root application widget establishing MaterialApp configuration, branding theme,
@@ -69,10 +59,7 @@ class BmsMobileApp extends StatelessWidget {
   /// The initial route to load upon application startup.
   final String initialRoute;
 
-  const BmsMobileApp({
-    super.key,
-    this.initialRoute = '/login',
-  });
+  const BmsMobileApp({super.key, this.initialRoute = '/login'});
 
   @override
   Widget build(BuildContext context) {
@@ -90,13 +77,10 @@ class BmsMobileApp extends StatelessWidget {
         scaffoldBackgroundColor: const Color(0xFFF5F7FB),
         fontFamily: 'Roboto',
       ),
-      
+
       // Localization delegates and supported locales configuration
-      localizationsDelegates: const [      ],
-      supportedLocales: const [
-        Locale('vi', 'VN'),
-        Locale('en', 'US'),
-      ],
+      localizationsDelegates: GlobalMaterialLocalizations.delegates,
+      supportedLocales: const [Locale('vi', 'VN'), Locale('en', 'US')],
       locale: const Locale('vi', 'VN'),
 
       // Dynamic initial route initialization
@@ -112,10 +96,10 @@ class BmsMobileApp extends StatelessWidget {
         '/patient-home': (context) => const PatientHomeScreen(),
         '/role-dashboard': (context) => const RoleDashboardScreen(),
         '/otp-verify': (context) => const OtpVerificationScreen(
-              destination: 'patient.johnson@gmail.com',
-              purpose: 'PasswordReset',
-              channel: 'Email',
-            ),
+          destination: 'patient.johnson@gmail.com',
+          purpose: 'PasswordReset',
+          channel: 'Email',
+        ),
         '/service-catalog': (context) => const ServiceCatalogScreen(),
         '/search-test-packages': (context) => const ServiceCatalogScreen(),
         '/create-guest-profile': (context) => const CreateGuestProfileScreen(),
@@ -129,22 +113,28 @@ class BmsMobileApp extends StatelessWidget {
         '/export-results': (context) => const ExportTestResultScreen(),
         '/patient/results': (context) => const ExportTestResultScreen(),
         '/iot-thresholds': (context) => const ConfigureIotThresholdsScreen(),
-        '/manager/iot-thresholds': (context) => const ConfigureIotThresholdsScreen(),
+        '/manager/iot-thresholds': (context) =>
+            const ConfigureIotThresholdsScreen(),
         '/verify-results': (context) => const VerifyTestResultsScreen(),
-        '/laboratory/verify-results': (context) => const VerifyTestResultsScreen(),
+        '/laboratory/verify-results': (context) =>
+            const VerifyTestResultsScreen(),
         '/sample-trace': (context) => const TraceSampleOriginScreen(),
-        '/laboratory/sample-trace': (context) => const TraceSampleOriginScreen(),
+        '/laboratory/sample-trace': (context) =>
+            const TraceSampleOriginScreen(),
         '/trace-sample': (context) => const TraceSampleOriginScreen(),
-        
+
         // Appointment management and QR check-in routes
         '/appointments': (context) => const AppointmentsListScreen(),
         '/scan-qr-checkin': (context) => const QrCheckinScannerScreen(),
         '/notifications': (context) => const TestResultNotificationsScreen(),
-        '/patient/notifications': (context) => const TestResultNotificationsScreen(),
-        '/test-result-notifications': (context) => const TestResultNotificationsScreen(),
-        
+        '/patient/notifications': (context) =>
+            const TestResultNotificationsScreen(),
+        '/test-result-notifications': (context) =>
+            const TestResultNotificationsScreen(),
+
         // Additional routes for auxiliary modules
-        '/notifications-history': (context) => const NotificationsHistoryScreen(),
+        '/notifications-history': (context) =>
+            const NotificationsHistoryScreen(),
         '/generate-receipt': (context) => const GenerateReceiptScreen(),
         '/patient/test-history': (context) => const TestHistoryScreen(),
       },
@@ -185,9 +175,7 @@ class MainScreen extends StatelessWidget {
               const Text(
                 'Blood Laboratory Management System',
                 textAlign: TextAlign.center,
-                style: TextStyle(
-                  color: Color(0xFF64748B),
-                ),
+                style: TextStyle(color: Color(0xFF64748B)),
               ),
               const SizedBox(height: 32),
               SizedBox(
@@ -199,9 +187,7 @@ class MainScreen extends StatelessWidget {
                   onPressed: () {
                     Navigator.push(
                       context,
-                      MaterialPageRoute(
-                        builder: (_) => const LoginScreen(),
-                      ),
+                      MaterialPageRoute(builder: (_) => const LoginScreen()),
                     ).then((result) {
                       if (result == true && context.mounted) {
                         Navigator.pushReplacement(

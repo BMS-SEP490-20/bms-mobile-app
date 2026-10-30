@@ -1,6 +1,8 @@
 /// Domain models for UC21 Book Appointment (Flutter).
 /// Aligned with BMS.Core.Entities.Appointment (no qrToken / priority / packageIds list on entity).
 
+library;
+
 class BookAppointmentRequest {
   final String patientId;
   final String doctorId;
