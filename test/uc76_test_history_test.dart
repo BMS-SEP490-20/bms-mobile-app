@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:bms_mobile_app/services/bms_auth.dart';
@@ -46,6 +47,7 @@ http.Response response(Object json, [int status = 200]) => http.Response(
 );
 
 void main() {
+  setUp(() => SharedPreferences.setMockInitialValues({}));
   setUp(() {
     BmsAuth.accessToken = 'fixture-session';
     BmsAuth.user = {'role': 'Patient', 'roleId': 9};

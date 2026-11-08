@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:jwt_decoder/jwt_decoder.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'api.dart';
+import 'bms_auth.dart';
 
 class AuthService {
   static Future<Map<String, dynamic>> login(
@@ -105,9 +106,7 @@ class AuthService {
   }
 
   static Future<void> logout() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.remove('token');
-    await prefs.remove('user');
+    await BmsAuth.logout();
   }
 
   static Future<Map<String, dynamic>> register(String email) async {

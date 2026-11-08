@@ -197,7 +197,7 @@ class _LoginScreenState extends State<LoginScreen> {
               Navigator.pop(dialogContext);
 
               // Xóa session/token thông qua service xác thực.
-              BmsAuth.logout();
+              await BmsAuth.logout();
 
               if (!mounted) return;
 

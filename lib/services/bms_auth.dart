@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
 import '../core/network/api_client.dart';
 
 /// Centralized API base URL configuration for development and emulator environments.
@@ -19,8 +20,7 @@ class BmsAuth {
   static Map<String, dynamic>? user;
 
   /// Returns whether a valid user session is currently authenticated in-memory.
-  static bool get isLoggedIn =>
-      accessToken != null && accessToken!.isNotEmpty;
+  static bool get isLoggedIn => accessToken != null && accessToken!.isNotEmpty;
 
   /// Returns normalized role name of the currently logged-in user
   /// (1 = Admin, 2 = Doctor, 3 = LabUser, 4 = Receptionist, 5 = Patient, 6 = Manager).
@@ -45,13 +45,14 @@ class BmsAuth {
         return 'Manager';
     }
 
-    final rawRole = (user!['roleName'] ??
-            user!['role'] ??
-            user!['RoleName'] ??
-            user!['Role'] ??
-            '')
-        .toString()
-        .trim();
+    final rawRole =
+        (user!['roleName'] ??
+                user!['role'] ??
+                user!['RoleName'] ??
+                user!['Role'] ??
+                '')
+            .toString()
+            .trim();
     final lower = rawRole.toLowerCase();
     if (lower.contains('admin')) return 'Admin';
     if (lower.contains('doctor') || lower.contains('bacsi')) return 'Doctor';
@@ -69,9 +70,9 @@ class BmsAuth {
       isLoggedIn && userRole.toLowerCase() == 'receptionist';
 
   static List<String> get _candidateBaseUrls => const [
-        'http://localhost:5000',
-        'http://10.0.2.2:5000',
-      ];
+    'http://localhost:5000',
+    'http://10.0.2.2:5000',
+  ];
 
   /// Authenticates user credentials against the BMS Backend API (/api/auth/login).
   static Future<Map<String, dynamic>> login({
@@ -135,22 +136,25 @@ class BmsAuth {
 
         String errMsg;
         if (response.statusCode == 401) {
-          errMsg = (data['message'] ??
-                  data['title'] ??
-                  'Tên đăng nhập hoặc mật khẩu không chính xác. Vui lòng thử lại!')
-              .toString();
+          errMsg =
+              (data['message'] ??
+                      data['title'] ??
+                      'Tên đăng nhập hoặc mật khẩu không chính xác. Vui lòng thử lại!')
+                  .toString();
         } else if (response.statusCode == 423) {
-          errMsg = (data['message'] ??
-                  data['title'] ??
-                  'Tài khoản tạm thời bị khóa do nhập sai mật khẩu quá 5 lần liên tiếp. Vui lòng thử lại sau.')
-              .toString();
+          errMsg =
+              (data['message'] ??
+                      data['title'] ??
+                      'Tài khoản tạm thời bị khóa do nhập sai mật khẩu quá 5 lần liên tiếp. Vui lòng thử lại sau.')
+                  .toString();
         } else {
-          errMsg = (data['message'] ??
-                  data['title'] ??
-                  data['detail'] ??
-                  data['error'] ??
-                  'Đăng nhập thất bại. Mã lỗi: ${response.statusCode}')
-              .toString();
+          errMsg =
+              (data['message'] ??
+                      data['title'] ??
+                      data['detail'] ??
+                      data['error'] ??
+                      'Đăng nhập thất bại. Mã lỗi: ${response.statusCode}')
+                  .toString();
         }
 
         return {
@@ -187,9 +191,7 @@ class BmsAuth {
                 'Content-Type': 'application/json',
                 'Accept': 'application/json',
               },
-              body: jsonEncode({
-                'email': email.trim(),
-              }),
+              body: jsonEncode({'email': email.trim()}),
             )
             .timeout(const Duration(seconds: 15));
 
@@ -204,14 +206,14 @@ class BmsAuth {
         if (response.statusCode >= 200 && response.statusCode < 300) {
           return {
             'success': true,
-            'message': data['message'] ??
-                'Yêu cầu gửi OTP đã được tiếp nhận.',
+            'message': data['message'] ?? 'Yêu cầu gửi OTP đã được tiếp nhận.',
           };
         }
 
         return {
           'success': false,
-          'message': data['message'] ??
+          'message':
+              data['message'] ??
               data['title'] ??
               'Gửi OTP thất bại (${response.statusCode}).',
         };
@@ -227,11 +229,57 @@ class BmsAuth {
     };
   }
 
-  /// Clears active credentials, tokens, and user profile claims from memory.
-  static void logout() {
+  /// Clears device credentials even offline, then revokes the captured refresh session when reachable.
+  static Future<void> logout({http.Client? client}) async {
+    final capturedAccess = accessToken;
+    final capturedRefresh = refreshToken;
     accessToken = null;
     refreshToken = null;
     user = null;
     ApiClient.userToken = null;
+    final prefs = await SharedPreferences.getInstance();
+    final access =
+        capturedAccess ??
+        prefs.getString('token') ??
+        prefs.getString('bms_access_token');
+    final refresh =
+        capturedRefresh ??
+        prefs.getString('refreshToken') ??
+        prefs.getString('bms_refresh_token');
+    for (final key in [
+      'token',
+      'user',
+      'accessToken',
+      'refreshToken',
+      'bms_access_token',
+      'bms_refresh_token',
+      'bms_user',
+      'bms_token',
+    ]) {
+      await prefs.remove(key);
+    }
+    if (access == null || refresh == null) return;
+    final transport = client ?? http.Client();
+    try {
+      for (final base in _candidateBaseUrls) {
+        try {
+          final response = await transport
+              .post(
+                Uri.parse('$base/api/auth/logout'),
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Authorization': 'Bearer $access',
+                },
+                body: jsonEncode({'refreshToken': refresh}),
+              )
+              .timeout(const Duration(seconds: 5));
+          if (response.statusCode < 500) break;
+        } catch (_) {
+          // The device stays signed out even when the backend is unavailable.
+        }
+      }
+    } finally {
+      if (client == null) transport.close();
+    }
   }
 }
