@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 import '../models/doctor_schedule_model.dart';
+import 'package:bms_mobile_app/services/bms_auth.dart';
 
 /// Repository for UC16 – View Doctor Schedule API.
 class ScheduleRepository {
@@ -10,7 +11,10 @@ class ScheduleRepository {
   final http.Client _client;
 
   ScheduleRepository({
-    this.baseUrl = 'http://localhost:5000',
+    this.baseUrl = const String.fromEnvironment(
+      'BMS_API_BASE_URL',
+      defaultValue: 'http://10.0.2.2:5000',
+    ),
     http.Client? client,
   }) : _client = client ?? http.Client();
 
@@ -25,11 +29,20 @@ class ScheduleRepository {
     if (doctorId != null && doctorId.isNotEmpty) query['doctorId'] = doctorId;
     if (search != null && search.isNotEmpty) query['search'] = search;
 
-    final uri = Uri.parse('$baseUrl/api/v1/schedules/doctors')
-        .replace(queryParameters: query.isEmpty ? null : query);
+    final uri = Uri.parse(
+      '$baseUrl/api/v1/schedules/doctors',
+    ).replace(queryParameters: query.isEmpty ? null : query);
 
     try {
-      final response = await _client.get(uri, headers: {'Accept': 'application/json'});
+      final token = BmsAuth.accessToken;
+      final response = await _client.get(
+        uri,
+        headers: {
+          'Accept': 'application/json',
+          if (token != null && token.isNotEmpty)
+            'Authorization': 'Bearer $token',
+        },
+      );
       if (response.statusCode != 200) {
         throw ScheduleException(
           'Failed to load schedule (${response.statusCode})',
