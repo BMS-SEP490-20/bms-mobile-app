@@ -1,26 +1,29 @@
 import 'package:flutter/material.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/widgets/bms_ui_kit.dart';
+import '../../../../services/bms_auth.dart';
+import '../../../shell/presentation/web_only_role_notice_screen.dart';
 import '../../data/test_result_verification_repository.dart';
 import '../../models/test_result_verification_model.dart';
 
-/// UC72 — Verify Test Results (Mobile)
-/// Laboratory technical supervisor screen for verifying specimen results before doctor approval.
+/// Laboratory Specimen Result Verification Screen.
+/// Routes Web-only Lab/Admin/Manager accounts to [WebOnlyRoleNoticeScreen] and uses 100% real API data.
 class VerifyTestResultsScreen extends StatefulWidget {
   final String specimenId;
 
-  const VerifyTestResultsScreen({
-    super.key,
-    this.specimenId = 'SPC-261006-A1-0089',
-  });
+  const VerifyTestResultsScreen({super.key, this.specimenId = ''});
 
   @override
-  State<VerifyTestResultsScreen> createState() => _VerifyTestResultsScreenState();
+  State<VerifyTestResultsScreen> createState() =>
+      _VerifyTestResultsScreenState();
 }
 
 class _VerifyTestResultsScreenState extends State<VerifyTestResultsScreen> {
-  final TestResultVerificationRepository _repository = TestResultVerificationRepository();
+  final TestResultVerificationRepository _repository =
+      TestResultVerificationRepository();
+  final TextEditingController _commentController = TextEditingController();
+
   TestResultVerificationDetailModel? _detail;
-  late TextEditingController _commentController;
   bool _isLoading = true;
   bool _isSubmitting = false;
   String? _errorMessage;
@@ -28,10 +31,11 @@ class _VerifyTestResultsScreenState extends State<VerifyTestResultsScreen> {
   @override
   void initState() {
     super.initState();
-    _commentController = TextEditingController(
-      text: "Results verified. LDL confirmed on repeat at 3.95. QC flag QCF-1142 under investigation but does not affect this specimen's validity — Levey-Jennings within control for HDL/TC/TG. Ready for doctor approval.",
-    );
-    _loadData();
+    if (widget.specimenId.trim().isNotEmpty) {
+      _loadData();
+    } else {
+      _isLoading = false;
+    }
   }
 
   @override
@@ -45,25 +49,24 @@ class _VerifyTestResultsScreenState extends State<VerifyTestResultsScreen> {
       _isLoading = true;
       _errorMessage = null;
     });
-
     try {
-      final res = await _repository.fetchVerificationDetails(widget.specimenId);
-      if (mounted) {
-        setState(() {
-          _detail = res;
-          if (res?.verifierComment != null && res!.verifierComment.isNotEmpty) {
-            _commentController.text = res.verifierComment;
-          }
-          _isLoading = false;
-        });
-      }
+      final res = await _repository.fetchVerificationDetails(
+        widget.specimenId.trim(),
+      );
+      if (!mounted) return;
+      setState(() {
+        _detail = res;
+        if (res != null && res.verifierComment.isNotEmpty) {
+          _commentController.text = res.verifierComment;
+        }
+        _isLoading = false;
+      });
     } catch (_) {
-      if (mounted) {
-        setState(() {
-          _errorMessage = 'Failed to load verification checklist.';
-          _isLoading = false;
-        });
-      }
+      if (!mounted) return;
+      setState(() {
+        _errorMessage = 'Không thể tải dữ liệu kiểm duyệt mẫu xét nghiệm.';
+        _isLoading = false;
+      });
     }
   }
 
@@ -72,368 +75,122 @@ class _VerifyTestResultsScreenState extends State<VerifyTestResultsScreen> {
     if (comment.length < 10) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Verifier comment must be at least 10 characters long.'),
-          backgroundColor: Colors.orange,
+          content: Text('Nhận xét kiểm duyệt cần tối thiểu 10 ký tự.'),
+          backgroundColor: AppColors.warning,
         ),
       );
       return;
     }
 
     setState(() => _isSubmitting = true);
-    final success = await _repository.verifyTestResult(widget.specimenId, comment);
-    if (mounted) {
-      setState(() => _isSubmitting = false);
-      if (success) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Test results verified and forwarded to doctor approval!'),
-            backgroundColor: Colors.green,
-          ),
-        );
-        _loadData();
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Failed to verify test results. Please try again.'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-    }
-  }
-
-  void _showReturnDialog() {
-    final reasonController = TextEditingController();
-
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Row(
-          children: [
-            Icon(Icons.assignment_return, color: Colors.orange),
-            SizedBox(width: 8),
-            Text('Return for Correction', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-          ],
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Specify corrective action required for specimen ${widget.specimenId}:',
-              style: const TextStyle(fontSize: 14, color: Colors.black87),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: reasonController,
-              maxLines: 4,
-              decoration: const InputDecoration(
-                hintText: 'e.g., Delta check variance exceeds tolerance; please repeat assay...',
-                border: OutlineInputBorder(),
-                helperText: 'Minimum 10 characters',
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.orange),
-            onPressed: () async {
-              final reason = reasonController.text.trim();
-              if (reason.length < 10) return;
-              Navigator.of(ctx).pop();
-
-              setState(() => _isSubmitting = true);
-              final success = await _repository.returnTestResult(widget.specimenId, reason);
-              if (mounted) {
-                setState(() => _isSubmitting = false);
-                if (success) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Specimen returned to lab technician for correction.'),
-                      backgroundColor: Colors.orange,
-                    ),
-                  );
-                  _loadData();
-                }
-              }
-            },
-            child: const Text('Confirm Return', style: TextStyle(color: Colors.white)),
-          ),
-        ],
-      ),
+    final ok = await _repository.verifyTestResult(
+      widget.specimenId.trim(),
+      comment,
     );
-  }
-
-  Widget _buildStatusBadge(String status, String statusType) {
-    Color bg;
-    Color fg;
-
-    switch (status.toLowerCase()) {
-      case 'flag':
-        bg = Colors.amber.shade100;
-        fg = Colors.orange.shade900;
-        break;
-      case 'ok':
-        bg = Colors.green.shade50;
-        fg = Colors.green.shade800;
-        break;
-      case 'confirmed':
-        bg = Colors.blue.shade50;
-        fg = Colors.blue.shade800;
-        break;
-      default:
-        bg = Colors.grey.shade200;
-        fg = Colors.black87;
-    }
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-      decoration: BoxDecoration(
-        color: bg,
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Text(
-        status,
-        style: TextStyle(
-          fontSize: 12,
-          fontWeight: FontWeight.bold,
-          color: fg,
+    if (!mounted) return;
+    setState(() => _isSubmitting = false);
+    if (ok) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Đã xác nhận kiểm duyệt và chuyển bác sĩ phê duyệt.'),
+          backgroundColor: AppColors.success,
         ),
-      ),
-    );
+      );
+      await _loadData();
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Không thể xác nhận kết quả mẫu.'),
+          backgroundColor: AppColors.danger,
+        ),
+      );
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    final specimenId = widget.specimenId;
-    final isVerified = _detail?.status == 'Verified';
+    if (BmsAuth.isLoggedIn && !BmsAuth.isMobileSupportedRole) {
+      return const WebOnlyRoleNoticeScreen();
+    }
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Verify test results', style: TextStyle(fontWeight: FontWeight.bold)),
-        backgroundColor: Colors.white,
-        foregroundColor: Colors.black87,
-        elevation: 0.5,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: _loadData,
-          ),
-        ],
-      ),
+      backgroundColor: AppColors.background,
+      appBar: AppBar(title: const Text('Kiểm duyệt kết quả xét nghiệm')),
       body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
+          ? const BmsLoadingState(message: 'Đang tải thông tin mẫu bệnh phẩm...')
           : _errorMessage != null
-              ? Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const Icon(Icons.error_outline, size: 48, color: Colors.red),
-                      const SizedBox(height: 12),
-                      Text(_errorMessage!),
-                      const SizedBox(height: 12),
-                      ElevatedButton(onPressed: _loadData, child: const Text('Retry')),
-                    ],
+              ? Padding(
+                  padding: const EdgeInsets.all(20),
+                  child: BmsErrorState(
+                    message: _errorMessage!,
+                    onRetry: _loadData,
                   ),
                 )
-              : SingleChildScrollView(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      // Specimen Summary Card
-                      Card(
-                        elevation: 1,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                        child: Padding(
+              : _detail == null
+                  ? const Padding(
+                      padding: EdgeInsets.all(20),
+                      child: BmsEmptyState(
+                        icon: Icons.desktop_windows_rounded,
+                        title: 'Nghiệp vụ kiểm duyệt máy phân tích thuộc hệ thống Web',
+                        subtitle:
+                            'Vui lòng đăng nhập Trạm làm việc BMS Web để đối soát Levey-Jennings và duyệt kỹ thuật.',
+                      ),
+                    )
+                  : ListView(
+                      padding: const EdgeInsets.all(16),
+                      children: [
+                        BmsSoftCard(
                           padding: const EdgeInsets.all(16),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                children: [
-                                  Text(
-                                    specimenId,
-                                    style: const TextStyle(
-                                      fontFamily: 'monospace',
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 16,
-                                      color: AppColors.primary,
-                                    ),
-                                  ),
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                                    decoration: BoxDecoration(
-                                      color: isVerified ? Colors.green.shade100 : Colors.blue.shade100,
-                                      borderRadius: BorderRadius.circular(8),
-                                    ),
-                                    child: Text(
-                                      _detail?.status ?? 'Pending',
-                                      style: TextStyle(
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.bold,
-                                        color: isVerified ? Colors.green.shade900 : Colors.blue.shade900,
-                                      ),
-                                    ),
-                                  ),
-                                ],
+                              BmsInfoRow(
+                                label: 'Mã mẫu bệnh phẩm',
+                                value: _detail!.specimenId,
+                                isMono: true,
                               ),
-                              const SizedBox(height: 8),
-                              Text(
-                                '${_detail?.packageName ?? "Lipid Profile"} · Order: ${_detail?.orderId ?? "ORD-261006-0187"}',
-                                style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
+                              BmsInfoRow(
+                                label: 'Bệnh nhân',
+                                value: _detail!.patientName,
+                                isBold: true,
                               ),
-                              const SizedBox(height: 4),
-                              Text(
-                                'Patient: ${_detail?.patientName ?? "Nguyễn Văn An"} (${_detail?.patientId ?? "PT-2026-004523"})',
-                                style: TextStyle(color: Colors.grey.shade700, fontSize: 13),
+                              BmsInfoRow(
+                                label: 'Mã bệnh nhân',
+                                value: _detail!.patientId,
+                                isMono: true,
                               ),
                             ],
                           ),
                         ),
-                      ),
-                      const SizedBox(height: 16),
-
-                      // Verification Checklist Card
-                      Card(
-                        elevation: 1,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                        child: Padding(
+                        const SizedBox(height: 14),
+                        BmsSoftCard(
                           padding: const EdgeInsets.all(16),
                           child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
                             children: [
-                              Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                children: [
-                                  const Text(
-                                    'Verification Checklist',
-                                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-                                  ),
-                                  if ((_detail?.flagCount ?? 0) > 0)
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                                      decoration: BoxDecoration(
-                                        color: Colors.amber.shade100,
-                                        borderRadius: BorderRadius.circular(6),
-                                      ),
-                                      child: Text(
-                                        '${_detail!.flagCount} flags',
-                                        style: TextStyle(
-                                          fontSize: 11,
-                                          fontWeight: FontWeight.bold,
-                                          color: Colors.orange.shade900,
-                                        ),
-                                      ),
-                                    ),
-                                ],
-                              ),
-                              const Divider(height: 24),
-                              ...((_detail?.checklist ?? []).map((item) {
-                                return Padding(
-                                  padding: const EdgeInsets.only(bottom: 14),
-                                  child: Row(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Expanded(
-                                        flex: 5,
-                                        child: Column(
-                                          crossAxisAlignment: CrossAxisAlignment.start,
-                                          children: [
-                                            Text(
-                                              item.checkName,
-                                              style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
-                                            ),
-                                            const SizedBox(height: 2),
-                                            Text(
-                                              item.details,
-                                              style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                      const SizedBox(width: 8),
-                                      _buildStatusBadge(item.status, item.statusType),
-                                    ],
-                                  ),
-                                );
-                              })),
-                            ],
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-
-                      // Verifier Comment
-                      Card(
-                        elevation: 1,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                        child: Padding(
-                          padding: const EdgeInsets.all(16),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const Text(
-                                'Verifier Comment',
-                                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
-                              ),
-                              const SizedBox(height: 8),
                               TextField(
                                 controller: _commentController,
-                                maxLines: 4,
-                                enabled: !isVerified && !_isSubmitting,
+                                maxLines: 3,
                                 decoration: const InputDecoration(
-                                  hintText: 'Enter clinical verification comments...',
-                                  border: OutlineInputBorder(),
-                                  helperText: 'Audit-logged in ISO 15189 compliance trail',
+                                  labelText: 'Nhận xét kiểm duyệt kỹ thuật *',
+                                  hintText:
+                                      'Nhập ghi chú đối soát chất lượng mẫu (tối thiểu 10 ký tự)...',
+                                ),
+                              ),
+                              const SizedBox(height: 14),
+                              FilledButton(
+                                onPressed: _isSubmitting ? null : _handleVerify,
+                                child: Text(
+                                  _isSubmitting
+                                      ? 'Đang xác nhận...'
+                                      : 'Xác nhận chuyển bác sĩ phê duyệt',
                                 ),
                               ),
                             ],
                           ),
                         ),
-                      ),
-                      const SizedBox(height: 24),
-
-                      // Actions
-                      ElevatedButton.icon(
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.green.shade700,
-                          padding: const EdgeInsets.symmetric(vertical: 14),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                        ),
-                        onPressed: isVerified || _isSubmitting ? null : _handleVerify,
-                        icon: const Icon(Icons.check_circle_outline, color: Colors.white),
-                        label: Text(
-                          isVerified ? 'Verified & Sent to Doctor' : 'Verify and send to doctor',
-                          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16),
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-
-                      OutlinedButton.icon(
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: Colors.orange.shade800,
-                          side: BorderSide(color: Colors.orange.shade800),
-                          padding: const EdgeInsets.symmetric(vertical: 14),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                        ),
-                        onPressed: isVerified || _isSubmitting ? null : _showReturnDialog,
-                        icon: const Icon(Icons.undo),
-                        label: const Text(
-                          'Return to lab tech for correction',
-                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
-                        ),
-                      ),
-                      const SizedBox(height: 32),
-                    ],
-                  ),
-                ),
+                      ],
+                    ),
     );
   }
 }

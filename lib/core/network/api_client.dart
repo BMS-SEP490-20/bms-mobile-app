@@ -1,5 +1,4 @@
-import 'dart:convert';
-import 'package:http/http.dart' as http;
+import 'bms_http_client.dart';
 
 /// Data model representing the response from the Send OTP API.
 class SendOtpResult {
@@ -8,7 +7,7 @@ class SendOtpResult {
   final int cooldownSeconds;
   final bool isRateLimited;
 
-  SendOtpResult({
+  const SendOtpResult({
     required this.isSuccess,
     required this.message,
     this.cooldownSeconds = 60,
@@ -22,243 +21,190 @@ class VerifyOtpResult {
   final String message;
   final String? verificationToken;
 
-  VerifyOtpResult({
+  const VerifyOtpResult({
     required this.isSuccess,
     required this.message,
     this.verificationToken,
   });
 }
 
-/// HTTP Network Client communicating with the BMS Backend Web API (.NET).
-/// Supports RFC 7807 problem details (429 Rate Limit, 400 Bad Request) and resilient mock fallback for offline dev/test.
+/// Real-API HTTP Network Client communicating with the BMS Backend Web API (.NET 9).
+/// Zero fabricated or offline simulation fallbacks.
 class ApiClient {
-  static const String baseUrl = 'http://10.0.2.2:5000/api'; // Android Emulator default; use localhost when testing Web/Desktop
+  static const String baseUrl = 'http://localhost:5000/api';
 
   static String? userToken;
 
-  static Map<String, String> get _headers => {
-    'Content-Type': 'application/json',
-    if (userToken != null) 'Authorization': 'Bearer $userToken',
-  };
+  static const BmsHttpClient _http = BmsHttpClient();
 
-  /// Generic POST request
-  static Future<Map<String, dynamic>> post(String endpoint, Map<String, dynamic> body) async {
+  static String _normalizeApiPath(String endpoint) {
+    final trimmed = endpoint.trim();
+    if (trimmed.startsWith('/api/')) return trimmed;
+    if (trimmed.startsWith('/')) return '/api$trimmed';
+    return '/api/$trimmed';
+  }
+
+  /// Generic POST request to `/api/...`
+  static Future<Map<String, dynamic>> post(
+    String endpoint,
+    Map<String, dynamic> body,
+  ) async {
     try {
-      final response = await http.post(
-        Uri.parse('$baseUrl$endpoint'),
-        headers: _headers,
-        body: jsonEncode(body),
-      ).timeout(const Duration(seconds: 10));
-
-      final data = jsonDecode(response.body);
-      return data is Map<String, dynamic> ? data : {'data': data};
-    } catch (e) {
-      // Offline fallback demo
+      final res = await _http.post(_normalizeApiPath(endpoint), body: body);
+      final map = res.bodyAsMap;
+      if (res.isSuccess) {
+        return {
+          'success': true,
+          ...map,
+        };
+      }
       return {
-        'success': true,
-        'message': 'Operation successful (Device simulation mode)',
+        'success': false,
+        'statusCode': res.statusCode,
+        'message': res.extractMessage('Thao tác không thành công.'),
+        ...map,
+      };
+    } on BmsApiException catch (e) {
+      return {
+        'success': false,
+        'message': e.message,
+      };
+    } catch (e) {
+      return {
+        'success': false,
+        'message': 'Không thể kết nối máy chủ: $e',
       };
     }
   }
 
-  /// Generic GET request
+  /// Generic GET request to `/api/...`
   static Future<Map<String, dynamic>> get(String endpoint) async {
     try {
-      final response = await http.get(
-        Uri.parse('$baseUrl$endpoint'),
-        headers: _headers,
-      ).timeout(const Duration(seconds: 10));
-
-      final data = jsonDecode(response.body);
-      return data is Map<String, dynamic> ? data : {'data': data};
+      final res = await _http.get(_normalizeApiPath(endpoint));
+      final map = res.bodyAsMap;
+      if (res.isSuccess) {
+        return map.isNotEmpty ? map : {'success': true, 'data': res.body};
+      }
+      return {
+        'success': false,
+        'statusCode': res.statusCode,
+        'message': res.extractMessage('Không thể tải dữ liệu từ máy chủ.'),
+      };
+    } on BmsApiException catch (e) {
+      return {
+        'success': false,
+        'message': e.message,
+      };
     } catch (e) {
-      return {'success': true, 'data': {}};
+      return {
+        'success': false,
+        'message': 'Không thể kết nối máy chủ: $e',
+      };
     }
   }
 
-  /// Dispatches a request to generate and send an OTP code via Email or SMS (UC03).
+  /// Dispatches a real OTP request via `/api/auth/otp/send`.
   static Future<SendOtpResult> sendOtp({
     required String destination,
     String purpose = 'PasswordReset',
     String channel = 'Email',
   }) async {
-    final url = Uri.parse('$baseUrl/auth/otp/send');
-    final body = jsonEncode({
-      'destination': destination.trim(),
-      'purpose': purpose,
-      'channel': channel,
-    });
-
     try {
-      final response = await http
-          .post(
-            url,
-            headers: {'Content-Type': 'application/json'},
-            body: body,
-          )
-          .timeout(const Duration(seconds: 10));
-
-      final data = jsonDecode(response.body);
-
-      if (response.statusCode == 200) {
+      final res = await _http.post(
+        '/api/auth/otp/send',
+        includeAuth: false,
+        body: {
+          'destination': destination.trim(),
+          'purpose': purpose,
+          'channel': channel,
+        },
+      );
+      final map = res.bodyAsMap;
+      if (res.isSuccess) {
         return SendOtpResult(
           isSuccess: true,
-          message: data['message'] ?? 'OTP verification code has been dispatched successfully.',
-          cooldownSeconds: data['cooldownSeconds'] ?? 60,
+          message: res.extractMessage('Mã xác thực OTP đã được gửi.'),
+          cooldownSeconds: (map['cooldownSeconds'] as num?)?.toInt() ?? 60,
         );
-      } else if (response.statusCode == 429) {
+      }
+      if (res.statusCode == 429) {
         return SendOtpResult(
           isSuccess: false,
           isRateLimited: true,
-          message: data['message'] ?? 'Too many requests. Please wait 5 minutes before trying again.',
+          message: res.extractMessage(
+            'Gửi yêu cầu quá nhanh. Vui lòng đợi ít phút trước khi thử lại.',
+          ),
           cooldownSeconds: 300,
         );
-      } else {
-        return SendOtpResult(
-          isSuccess: false,
-          message: data['message'] ?? 'Unable to send OTP code. Please check your information.',
-        );
       }
-    } catch (e) {
-      // Offline fallback: allows seamless offline mobile testing
       return SendOtpResult(
-        isSuccess: true,
-        message: '[MOCK TEST] Demo OTP code (123456) dispatched to $destination.',
-        cooldownSeconds: 60,
+        isSuccess: false,
+        message: res.extractMessage('Không thể gửi mã OTP.'),
       );
+    } on BmsApiException catch (e) {
+      return SendOtpResult(isSuccess: false, message: e.message);
     }
   }
 
-  /// Verifies a 6-digit OTP code submitted by the user (UC03).
+  /// Verifies a 6-digit OTP code via `/api/auth/otp/verify` or `/api/auth/verify-otp`.
   static Future<VerifyOtpResult> verifyOtp({
     required String destination,
     required String otp,
     String purpose = 'PasswordReset',
   }) async {
-    if (otp.length != 6) {
-      return VerifyOtpResult(
+    if (otp.trim().length != 6) {
+      return const VerifyOtpResult(
         isSuccess: false,
-        message: 'Verification code must be exactly 6 numeric digits.',
+        message: 'Vui lòng nhập đủ 6 chữ số của mã OTP.',
       );
     }
 
-    final url = Uri.parse('$baseUrl/auth/otp/verify');
-    final body = jsonEncode({
-      'destination': destination.trim(),
-      'otp': otp.trim(),
-      'purpose': purpose,
-    });
-
     try {
-      final response = await http
-          .post(
-            url,
-            headers: {'Content-Type': 'application/json'},
-            body: body,
-          )
-          .timeout(const Duration(seconds: 10));
+      final path = purpose == 'Registration'
+          ? '/api/auth/verify-otp'
+          : '/api/auth/otp/verify';
+      final body = purpose == 'Registration'
+          ? {'email': destination.trim(), 'otp': otp.trim()}
+          : {
+              'destination': destination.trim(),
+              'otp': otp.trim(),
+              'purpose': purpose,
+            };
 
-      final data = jsonDecode(response.body);
-
-      if (response.statusCode == 200) {
+      final res = await _http.post(path, includeAuth: false, body: body);
+      final map = res.bodyAsMap;
+      if (res.isSuccess) {
         return VerifyOtpResult(
           isSuccess: true,
-          message: data['message'] ?? 'OTP verified successfully!',
-          verificationToken: data['verificationToken'] ?? 'mock-token',
-        );
-      } else {
-        return VerifyOtpResult(
-          isSuccess: false,
-          message: data['message'] ?? 'Incorrect or expired OTP code.',
-        );
-      }
-    } catch (e) {
-      // Offline mock fallback: accepts demo code "123456"
-      if (otp.trim() == '123456') {
-        return VerifyOtpResult(
-          isSuccess: true,
-          message: '[MOCK TEST] OTP verified successfully!',
-          verificationToken: 'mock-verification-token-123456',
+          message: res.extractMessage('Xác thực mã OTP thành công.'),
+          verificationToken: map['verificationToken']?.toString(),
         );
       }
       return VerifyOtpResult(
         isSuccess: false,
-        message: 'Invalid OTP code. (Hint for offline test: 123456)',
+        message: res.extractMessage('Mã OTP không hợp lệ hoặc đã hết hạn.'),
       );
+    } on BmsApiException catch (e) {
+      return VerifyOtpResult(isSuccess: false, message: e.message);
     }
   }
 
-  /// UC12 - View Role-Based Dashboard Statistics
-  static Future<Map<String, dynamic>> getDashboardStats(String role) async {
-    try {
-      final response = await http.get(
-        Uri.parse('$baseUrl/dashboard/stats?role=$role'),
-        headers: _headers,
-      ).timeout(const Duration(seconds: 5));
-
-      if (response.statusCode == 200) {
-        final body = jsonDecode(response.body);
-        if (body is Map<String, dynamic> && body.containsKey('summaryCards')) {
-          return body;
-        }
-      }
-    } catch (_) {}
-
-    // High fidelity fallback matching BMS.Application DashboardDtos
-    switch (role) {
-      case 'Doctor':
-        return {
-          'role': 'Doctor',
-          'userName': 'BS. Võ Gia Huy',
-          'summaryCards': [
-            {'key': 'today_appts', 'title': 'Lịch khám hôm nay', 'value': '12', 'icon': 'calendar_today', 'colorVariant': 'primary', 'subtitle': '8 đã hoàn thành'},
-            {'key': 'pending_approvals', 'title': 'Chờ duyệt kết quả', 'value': '5', 'icon': 'fact_check', 'colorVariant': 'warning', 'subtitle': 'Cần duyệt ngay'},
-            {'key': 'reviewed_today', 'title': 'Đã duyệt hôm nay', 'value': '24', 'icon': 'task_alt', 'colorVariant': 'success', 'subtitle': 'Đạt chỉ tiêu'},
-          ]
-        };
-      case 'LabUser':
-        return {
-          'role': 'LabUser',
-          'userName': 'KTV. Võ Gia Huy',
-          'summaryCards': [
-            {'key': 'queue_waiting', 'title': 'Mẫu chờ chạy máy', 'value': '14', 'icon': 'hourglass_top', 'colorVariant': 'warning', 'subtitle': 'Trong hàng đợi'},
-            {'key': 'in_progress', 'title': 'Mẫu đang xử lý', 'value': '18', 'icon': 'biotech', 'colorVariant': 'primary', 'subtitle': 'Đang trên máy LIS'},
-            {'key': 'completed_today', 'title': 'Đã hoàn thành', 'value': '42', 'icon': 'check_circle', 'colorVariant': 'success', 'subtitle': 'Hôm nay'},
-            {'key': 'stat_samples', 'title': 'Mẫu cấp cứu (STAT)', 'value': '3', 'icon': 'emergency', 'colorVariant': 'danger', 'subtitle': 'Ưu tiên tối cao'},
-          ]
-        };
-      case 'Receptionist':
-        return {
-          'role': 'Receptionist',
-          'userName': 'Lễ tân Võ Gia Huy',
-          'summaryCards': [
-            {'key': 'checkins_today', 'title': 'Tiếp nhận hôm nay', 'value': '35', 'icon': 'how_to_reg', 'colorVariant': 'primary', 'subtitle': 'Đã check-in'},
-            {'key': 'waiting_queue', 'title': 'Đang chờ lấy mẫu', 'value': '7', 'icon': 'people', 'colorVariant': 'warning', 'subtitle': 'Tại phòng lấy mẫu'},
-            {'key': 'payments_collected', 'title': 'Viện phí đã thu', 'value': '12.5M VNĐ', 'icon': 'payments', 'colorVariant': 'success', 'subtitle': 'Tiền mặt & QR'},
-          ]
-        };
-      case 'Manager':
-        return {
-          'role': 'Manager',
-          'userName': 'Quản lý Võ Gia Huy',
-          'summaryCards': [
-            {'key': 'revenue_today', 'title': 'Doanh thu hôm nay', 'value': '48.2M VNĐ', 'icon': 'attach_money', 'colorVariant': 'success', 'subtitle': '+15% so với hôm qua'},
-            {'key': 'orders_today', 'title': 'Tổng chỉ định', 'value': '64', 'icon': 'receipt_long', 'colorVariant': 'primary', 'subtitle': 'Phiếu xét nghiệm'},
-            {'key': 'avg_tat', 'title': 'TAT trung bình', 'value': '42 phút', 'icon': 'timer', 'colorVariant': 'info', 'subtitle': 'Mục tiêu: <60p'},
-            {'key': 'iot_temp', 'title': 'Nhiệt độ tủ lạnh IoT', 'value': '4.1°C', 'icon': 'thermostat', 'colorVariant': 'success', 'subtitle': 'Ngưỡng an toàn (2-8°C)'},
-          ]
-        };
-      case 'Patient':
-      default:
-        return {
-          'role': 'Patient',
-          'userName': 'Bệnh nhân Võ Gia Huy',
-          'summaryCards': [
-            {'key': 'upcoming_appts', 'title': 'Lịch hẹn sắp tới', 'value': '1', 'icon': 'event', 'colorVariant': 'primary', 'subtitle': '14:30 hôm nay'},
-            {'key': 'ready_results', 'title': 'Kết quả đã có', 'value': '3', 'icon': 'assignment_turned_in', 'colorVariant': 'success', 'subtitle': 'Có thể tải PDF'},
-            {'key': 'pending_results', 'title': 'Mẫu đang xét nghiệm', 'value': '1', 'icon': 'sync', 'colorVariant': 'warning', 'subtitle': 'Dự kiến 16:00'},
-          ]
-        };
+  /// Retrieves real role-based dashboard statistics from `GET /api/dashboard/stats`.
+  static Future<Map<String, dynamic>> getDashboardStats([String? role]) async {
+    final res = await _http.get(
+      '/api/dashboard/stats',
+      query: role != null && role.isNotEmpty ? {'role': role} : null,
+    );
+    if (!res.isSuccess) {
+      throw BmsApiException(
+        res.extractMessage('Không thể tải thống kê bảng điều khiển.'),
+        statusCode: res.statusCode,
+      );
     }
+    final data = res.data;
+    if (data is Map<String, dynamic>) {
+      return data;
+    }
+    return res.bodyAsMap;
   }
 }

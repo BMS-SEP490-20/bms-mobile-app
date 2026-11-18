@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-
+import '../../../../core/theme/app_colors.dart';
+import '../../../../core/widgets/bms_ui_kit.dart';
 import '../../data/schedule_repository.dart';
 import '../../models/doctor_schedule_model.dart';
 
-/// Doctor Schedule screen (UC16 – Mobile).
-/// Roles: Doctor, Manager, Administrator, Receptionist.
+/// Department Doctor Schedule Lookup Screen (`GET /api/v1/schedules/doctors`).
 class DoctorScheduleScreen extends StatefulWidget {
   final ScheduleRepository? repository;
 
@@ -17,18 +17,18 @@ class DoctorScheduleScreen extends StatefulWidget {
 
 class _DoctorScheduleScreenState extends State<DoctorScheduleScreen> {
   late final ScheduleRepository _repo;
+  final TextEditingController _searchCtrl = TextEditingController();
+
   DateTime _date = DateTime.now();
   DoctorScheduleResponse? _data;
   bool _loading = true;
   String? _error;
-  final _searchCtrl = TextEditingController();
-  String _search = '';
 
   @override
   void initState() {
     super.initState();
     _repo = widget.repository ?? ScheduleRepository();
-    _load();
+    _loadSchedule();
   }
 
   @override
@@ -38,330 +38,173 @@ class _DoctorScheduleScreenState extends State<DoctorScheduleScreen> {
     super.dispose();
   }
 
-  String get _dateStr => DateFormat('yyyy-MM-dd').format(_date);
-  String get _displayDate => DateFormat('dd/MM/yyyy').format(_date);
-
-  Future<void> _load() async {
+  Future<void> _loadSchedule() async {
     setState(() {
       _loading = true;
       _error = null;
     });
     try {
-      final result = await _repo.getDaySchedule(
-        date: _dateStr,
-        search: _search.isEmpty ? null : _search,
+      final dateIso = DateFormat('yyyy-MM-dd').format(_date);
+      final res = await _repo.getDaySchedule(
+        date: dateIso,
+        search: _searchCtrl.text.trim(),
       );
       if (!mounted) return;
       setState(() {
-        _data = result;
+        _data = res;
         _loading = false;
-      });
-    } on ScheduleException catch (e) {
-      if (!mounted) return;
-      setState(() {
-        _error = e.message;
-        _loading = false;
-        _data = null;
       });
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _error = 'Unexpected error: $e';
+        _error = e is ScheduleException
+            ? e.message
+            : 'Không thể tải lịch trực bác sĩ.';
         _loading = false;
-        _data = null;
       });
     }
   }
 
-  void _prevDay() {
-    setState(() => _date = _date.subtract(const Duration(days: 1)));
-    _load();
-  }
-
-  void _nextDay() {
-    setState(() => _date = _date.add(const Duration(days: 1)));
-    _load();
-  }
-
-  String _statusLabel(String status) {
-    if (status == 'Approved' || status == 'Đã duyệt') return 'Approved';
-    if (status == 'Pending') return 'Pending';
-    return status;
+  Future<void> _pickDate() async {
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _date,
+      firstDate: DateTime.now().subtract(const Duration(days: 30)),
+      lastDate: DateTime.now().add(const Duration(days: 60)),
+    );
+    if (picked != null) {
+      setState(() => _date = picked);
+      await _loadSchedule();
+    }
   }
 
   @override
   Widget build(BuildContext context) {
+    final doctors = _data?.doctors ?? const [];
+
     return Scaffold(
-      backgroundColor: const Color(0xFFF1F5F9),
+      backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: const Text(
-          'Doctor Schedule',
-          style: TextStyle(fontWeight: FontWeight.w800, color: Color(0xFF0F172A)),
-        ),
-        backgroundColor: Colors.white,
-        elevation: 0,
-        foregroundColor: const Color(0xFF0F172A),
-      ),
-      body: Column(
-        children: [
-          _buildFilters(),
-          Expanded(child: _buildBody()),
+        title: const Text('Lịch trực bác sĩ toàn khoa'),
+        actions: [
+          IconButton(
+            tooltip: 'Chọn ngày xem lịch',
+            onPressed: _pickDate,
+            icon: const Icon(Icons.calendar_month_rounded),
+          ),
         ],
       ),
-    );
-  }
-
-  Widget _buildFilters() {
-    return Container(
-      color: Colors.white,
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
-      child: Column(
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              IconButton(onPressed: _prevDay, icon: const Icon(Icons.chevron_left)),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-                decoration: BoxDecoration(
-                  border: Border.all(color: const Color(0xFFE2E8F0)),
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Text(
-                  _displayDate,
-                  style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
-                ),
-              ),
-              IconButton(onPressed: _nextDay, icon: const Icon(Icons.chevron_right)),
-            ],
-          ),
-          if (_data?.dateLabel != null && _data!.dateLabel.isNotEmpty)
-            Padding(
-              padding: const EdgeInsets.only(bottom: 8),
-              child: Text(
-                _data!.dateLabel,
-                style: const TextStyle(fontSize: 12, color: Color(0xFF64748B)),
+      body: RefreshIndicator(
+        color: AppColors.primary,
+        onRefresh: _loadSchedule,
+        child: ListView(
+          padding: const EdgeInsets.fromLTRB(16, 14, 16, 28),
+          children: [
+            BmsPageHeaderCard(
+              icon: Icons.calendar_view_week_rounded,
+              badgeText: 'Ngày trực: ${BmsFormatters.date(_date)}',
+              title: 'Bảng phân công ca khám',
+              subtitle: 'Tra cứu phòng khám, chuyên khoa và khung giờ bác sĩ trực',
+              trailing: OutlinedButton(
+                onPressed: _pickDate,
+                child: const Text('Đổi ngày'),
               ),
             ),
-          Row(
-            children: [
-              Expanded(
-                child: TextField(
-                  controller: _searchCtrl,
-                  decoration: InputDecoration(
-                    hintText: 'Search doctor or specialty...',
-                    hintStyle: const TextStyle(fontSize: 13),
-                    prefixIcon: const Icon(Icons.search, size: 20),
-                    filled: true,
-                    fillColor: const Color(0xFFF8FAFC),
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(10),
-                      borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
-                    ),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(10),
-                      borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
-                    ),
-                  ),
-                  style: const TextStyle(fontSize: 13),
-                  onSubmitted: (v) {
-                    setState(() => _search = v.trim());
-                    _load();
-                  },
-                ),
+            const SizedBox(height: 12),
+            BmsSearchFilterBar(
+              controller: _searchCtrl,
+              hintText: 'Tìm tên bác sĩ hoặc chuyên khoa...',
+              onSubmitted: (_) => _loadSchedule(),
+              onClear: _loadSchedule,
+              trailing: FilledButton(
+                onPressed: _loadSchedule,
+                child: const Text('Tìm'),
               ),
-              const SizedBox(width: 8),
-              ElevatedButton(
-                onPressed: () {
-                  setState(() => _search = _searchCtrl.text.trim());
-                  _load();
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF2563EB),
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                ),
-                child: const Text('Search'),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildBody() {
-    if (_loading) return const Center(child: CircularProgressIndicator());
-
-    if (_error != null) {
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                _error!,
-                textAlign: TextAlign.center,
-                style: const TextStyle(color: Color(0xFFB91C1C)),
-              ),
-              const SizedBox(height: 12),
-              OutlinedButton(onPressed: _load, child: const Text('Retry')),
-            ],
-          ),
-        ),
-      );
-    }
-
-    final doctors = _data?.doctors ?? [];
-    if (doctors.isEmpty) {
-      return const Center(
-        child: Text(
-          'No doctors scheduled for this date.',
-          style: TextStyle(color: Color(0xFF94A3B8)),
-        ),
-      );
-    }
-
-    return RefreshIndicator(
-      onRefresh: _load,
-      child: ListView.builder(
-        padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
-        itemCount: doctors.length + (_data?.note != null ? 1 : 0),
-        itemBuilder: (context, index) {
-          if (index == doctors.length) {
-            return Container(
-              margin: const EdgeInsets.only(top: 8),
-              padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(
-                color: const Color(0xFFEFF6FF),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Text(
-                _data!.note ?? '',
-                style: const TextStyle(fontSize: 12, color: Color(0xFF1E3A8A)),
-              ),
-            );
-          }
-          return _buildDoctorCard(doctors[index]);
-        },
-      ),
-    );
-  }
-
-  Widget _buildDoctorCard(DoctorColumn doc) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 14),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 3),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(14, 14, 14, 8),
-            child: Row(
-              children: [
-                Expanded(
+            ),
+            const SizedBox(height: 14),
+            if (_loading)
+              const BmsLoadingState(message: 'Đang tải lịch trực bác sĩ...')
+            else if (_error != null)
+              BmsErrorState(message: _error!, onRetry: _loadSchedule)
+            else if (doctors.isEmpty)
+              const BmsEmptyState(
+                icon: Icons.event_busy_outlined,
+                title: 'Chưa có lịch bác sĩ trực trong ngày này',
+                subtitle: 'Vui lòng chọn ngày khác để kiểm tra ca phân công.',
+              )
+            else
+              ...doctors.map((doc) {
+                return BmsSoftCard(
+                  margin: const EdgeInsets.only(bottom: 12),
+                  padding: const EdgeInsets.all(15),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              doc.fullName,
+                              style: const TextStyle(
+                                fontSize: 15,
+                                fontWeight: FontWeight.w800,
+                                color: AppColors.textPrimary,
+                              ),
+                            ),
+                          ),
+                          BmsStatusPill(status: doc.status),
+                        ],
+                      ),
+                      const SizedBox(height: 4),
                       Text(
-                        doc.fullName,
+                        '${doc.specialty}${doc.roomName.isNotEmpty ? ' · ${doc.roomName}' : ''}',
                         style: const TextStyle(
-                          fontSize: 15,
-                          fontWeight: FontWeight.w700,
-                          color: Color(0xFF1E3A8A),
+                          fontSize: 12.5,
+                          color: AppColors.textSecondary,
                         ),
                       ),
-                      const SizedBox(height: 2),
-                      Text(
-                        doc.specialty,
-                        style: const TextStyle(fontSize: 12, color: Color(0xFF64748B)),
-                      ),
+                      if (doc.slots.isNotEmpty) ...[
+                        const SizedBox(height: 10),
+                        Wrap(
+                          spacing: 6,
+                          runSpacing: 6,
+                          children: doc.slots.map((s) {
+                            return Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 9,
+                                vertical: 5,
+                              ),
+                              decoration: BoxDecoration(
+                                color: s.isAvailable
+                                    ? AppColors.successLight
+                                    : AppColors.surfaceMuted,
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(
+                                  color: s.isAvailable
+                                      ? AppColors.successBorder
+                                      : AppColors.cardBorder,
+                                ),
+                              ),
+                              child: Text(
+                                '${s.startTime} - ${s.endTime}',
+                                style: TextStyle(
+                                  fontSize: 11.5,
+                                  fontWeight: FontWeight.w700,
+                                  color: s.isAvailable
+                                      ? AppColors.successText
+                                      : AppColors.textSecondary,
+                                ),
+                              ),
+                            );
+                          }).toList(),
+                        ),
+                      ],
                     ],
                   ),
-                ),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFDBEAFE),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Text(
-                    _statusLabel(doc.status),
-                    style: const TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
-                      color: Color(0xFF1D4ED8),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const Divider(height: 1),
-          ...doc.slots.map((slot) => _buildSlotRow(slot)),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildSlotRow(ScheduleSlot slot) {
-    Color bg = const Color(0xFFEFF6FF);
-    if (slot.isBreak) bg = const Color(0xFFF8FAFC);
-    if (slot.isAvailable) bg = const Color(0xFFF0FDF4);
-
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-      decoration: BoxDecoration(
-        color: bg,
-        borderRadius: BorderRadius.circular(10),
-      ),
-      child: Row(
-        children: [
-          SizedBox(
-            width: 88,
-            child: Text(
-              '${slot.startTime}-${slot.endTime}',
-              style: const TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.w600,
-                color: Color(0xFF64748B),
-              ),
-            ),
-          ),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  slot.activity,
-                  style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                    color: slot.isBreak ? const Color(0xFF94A3B8) : const Color(0xFF1E3A8A),
-                  ),
-                ),
-                if (!slot.isBreak && (slot.roomName.isNotEmpty || slot.detail.isNotEmpty))
-                  Text(
-                    [slot.roomName, slot.detail].where((s) => s.isNotEmpty).join(' · '),
-                    style: const TextStyle(fontSize: 11, color: Color(0xFF64748B)),
-                  ),
-              ],
-            ),
-          ),
-        ],
+                );
+              }),
+          ],
+        ),
       ),
     );
   }
