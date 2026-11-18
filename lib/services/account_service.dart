@@ -1,148 +1,92 @@
 import 'dart:convert';
-import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
+import '../core/network/bms_http_client.dart';
 import 'bms_auth.dart';
 
-/// Clinical Account Management Service (UC09 - Update Account Information).
-/// Supports both live backend communication and offline simulation fallback.
+/// Real-API Account Service for authenticated user profile read/update (`GET /api/users/me` & `PUT /api/users/{id}`).
+/// Zero offline simulation fallbacks. Sends ONLY `{fullName, email, phoneNumber}` on update.
 class AccountService {
-  static const String baseUrl = apiBaseUrl;
+  static const BmsHttpClient _http = BmsHttpClient();
 
-  /// Lấy thông tin tài khoản theo ID
-  static Future<Map<String, dynamic>> getAccountById(String id) async {
+  /// Retrieves the signed-in user's account profile via `GET /api/users/me`.
+  static Future<Map<String, dynamic>> getCurrentAccount() async {
     try {
-      final token = BmsAuth.accessToken;
-      final uri = Uri.parse('$baseUrl/api/users/$id');
-      final response = await http.get(
-        uri,
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-          if (token != null && token.isNotEmpty) 'Authorization': 'Bearer $token',
-        },
-      ).timeout(const Duration(seconds: 8));
-
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
+      final res = await _http.get('/api/users/me');
+      if (res.isSuccess) {
+        final data = res.data;
         return {
           'success': true,
-          'data': data['data'] ?? data,
+          'data': data is Map<String, dynamic> ? data : res.bodyAsMap,
         };
       }
       return {
         'success': false,
-        'message': 'Không tìm thấy tài khoản (Mã: ${response.statusCode})',
+        'message': res.extractMessage(
+          'Không thể tải thông tin tài khoản (Mã: ${res.statusCode}).',
+        ),
       };
-    } catch (e) {
-      // Offline fallback: lấy từ SharedPreferences nếu không kết nối được
-      final prefs = await SharedPreferences.getInstance();
-      final userStr = prefs.getString('user');
-      if (userStr != null) {
-        try {
-          final localData = jsonDecode(userStr);
-          return {
-            'success': true,
-            'data': localData,
-          };
-        } catch (_) {}
-      }
-
-      return {
-        'success': false,
-        'message': 'Chế độ ngoại tuyến: Sử dụng dữ liệu hồ sơ đã lưu.',
-      };
+    } on BmsApiException catch (e) {
+      return {'success': false, 'message': e.message};
     }
   }
 
-  /// Cập nhật thông tin tài khoản (UC09)
+  /// Compatibility wrapper loading own account profile.
+  static Future<Map<String, dynamic>> getAccountById(String id) async {
+    return getCurrentAccount();
+  }
+
+  /// Updates the signed-in user's contact profile via `PUT /api/users/{id}`.
+  /// Sends ONLY `{fullName, email, phoneNumber}` (never `roleId` or `isActive`).
   static Future<Map<String, dynamic>> updateAccount(
     String id, {
-    required String username,
+    required String fullName,
     required String email,
-    String? password,
-    int roleId = 5, // 5 = Patient
-    int status = 1, // 1 = Active
+    String? phoneNumber,
   }) async {
     try {
       final payload = <String, dynamic>{
-        'id': id,
-        'username': username,
-        'fullName': username,
-        'email': email,
-        'roleId': roleId,
-        'status': status,
+        'fullName': fullName.trim(),
+        'email': email.trim(),
+        if (phoneNumber != null) 'phoneNumber': phoneNumber.trim(),
       };
 
-      if (password != null && password.isNotEmpty) {
-        payload['password'] = password;
-      }
-
-      final token = BmsAuth.accessToken;
-      final uri = Uri.parse('$baseUrl/api/users/$id');
-      final response = await http.put(
-        uri,
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-          if (token != null && token.isNotEmpty) 'Authorization': 'Bearer $token',
-        },
-        body: jsonEncode(payload),
-      ).timeout(const Duration(seconds: 8));
-
-      if (response.statusCode >= 200 && response.statusCode < 300) {
-        Map<String, dynamic> data = {};
-        try {
-          final decoded = jsonDecode(response.body);
-          if (decoded is Map<String, dynamic>) data = decoded;
-        } catch (_) {}
-
-        await _saveLocalProfile(id, username, email, roleId);
-
+      final res = await _http.put('/api/users/$id', body: payload);
+      if (res.isSuccess) {
+        await _syncCachedUser(
+          fullName: fullName.trim(),
+          email: email.trim(),
+          phoneNumber: phoneNumber?.trim(),
+        );
         return {
           'success': true,
-          'message': data['message'] ?? 'Cập nhật tài khoản thành công',
-          'data': data['data'],
-        };
-      } else {
-        return {
-          'success': false,
-          'message': 'Cập nhật thất bại (Mã: ${response.statusCode})',
+          'message': res.extractMessage('Cập nhật thông tin tài khoản thành công.'),
+          'data': res.data,
         };
       }
-    } catch (e) {
-      // Offline simulation fallback for testing
-      await _saveLocalProfile(id, username, email, roleId);
-
       return {
-        'success': true,
-        'message': 'Cập nhật thông tin tài khoản thành công (Offline Mode).',
+        'success': false,
+        'message': res.extractMessage(
+          'Cập nhật tài khoản thất bại (Mã: ${res.statusCode}).',
+        ),
       };
+    } on BmsApiException catch (e) {
+      return {'success': false, 'message': e.message};
     }
   }
 
-  static Future<void> _saveLocalProfile(String id, String username, String email, int roleId) async {
-    try {
+  static Future<void> _syncCachedUser({
+    required String fullName,
+    required String email,
+    String? phoneNumber,
+  }) async {
+    if (BmsAuth.user != null) {
+      BmsAuth.user!['fullName'] = fullName;
+      BmsAuth.user!['email'] = email;
+      if (phoneNumber != null) {
+        BmsAuth.user!['phoneNumber'] = phoneNumber;
+      }
       final prefs = await SharedPreferences.getInstance();
-      final currentUserStr = prefs.getString('user');
-      Map<String, dynamic> currentUser = {};
-      if (currentUserStr != null) {
-        try {
-          currentUser = jsonDecode(currentUserStr) as Map<String, dynamic>;
-        } catch (_) {}
-      }
-
-      currentUser['id'] = id;
-      currentUser['username'] = username;
-      currentUser['fullName'] = username;
-      currentUser['email'] = email;
-      currentUser['roleId'] = roleId;
-
-      await prefs.setString('user', jsonEncode(currentUser));
-
-      if (BmsAuth.user != null) {
-        BmsAuth.user!['fullName'] = username;
-        BmsAuth.user!['email'] = email;
-      }
-    } catch (_) {}
+      await prefs.setString('user', jsonEncode(BmsAuth.user));
+    }
   }
 }

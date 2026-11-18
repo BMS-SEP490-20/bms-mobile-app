@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
-
-import '../../../../services/bms_auth.dart';
+import '../../../core/theme/app_colors.dart';
+import '../../../core/widgets/bms_ui_kit.dart';
+import '../../../services/bms_auth.dart';
 import '../data/walkin_repository.dart';
 import 'register_walkin_page.dart';
 
-/// Ready-to-route wrapper for UC26 (Receptionist walk-in).
-/// `'/register-walk-in': (_) => const RegisterWalkInScreen(),`
+/// Walk-in Patient Registration Route Wrapper in Vietnamese.
 class RegisterWalkInScreen extends StatelessWidget {
   const RegisterWalkInScreen({super.key});
 
@@ -13,28 +13,31 @@ class RegisterWalkInScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     if (!BmsAuth.isLoggedIn) {
       return Scaffold(
-        appBar: AppBar(title: const Text('Walk-in registration')),
-        body: Center(
-          child: FilledButton(
-            onPressed: () => Navigator.pushNamed(context, '/login'),
-            child: const Text('Sign in'),
+        backgroundColor: AppColors.background,
+        appBar: AppBar(title: const Text('Tiếp nhận khách vãng lai')),
+        body: Padding(
+          padding: const EdgeInsets.all(20),
+          child: BmsEmptyState(
+            icon: Icons.lock_outline_rounded,
+            title: 'Vui lòng đăng nhập tài khoản Lễ tân',
+            actionLabel: 'Đăng nhập',
+            onAction: () => Navigator.pushNamed(context, '/login'),
           ),
         ),
       );
     }
 
-    // Prefer Receptionist; still allow Admin for testing.
     final role = BmsAuth.userRole.toLowerCase();
     if (role != 'receptionist' && role != 'admin') {
       return Scaffold(
-        appBar: AppBar(title: const Text('Walk-in registration')),
-        body: const Center(
-          child: Padding(
-            padding: EdgeInsets.all(24),
-            child: Text(
-              'Only Receptionist (or Admin) can register walk-in patients.',
-              textAlign: TextAlign.center,
-            ),
+        backgroundColor: AppColors.background,
+        appBar: AppBar(title: const Text('Tiếp nhận khách vãng lai')),
+        body: const Padding(
+          padding: EdgeInsets.all(20),
+          child: BmsEmptyState(
+            icon: Icons.block_rounded,
+            title: 'Chức năng dành riêng cho Lễ tân tiếp đón',
+            subtitle: 'Chỉ nhân viên Lễ tân mới có quyền đăng ký hồ sơ vãng lai.',
           ),
         ),
       );

@@ -1,16 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-
+import '../../../core/theme/app_colors.dart';
+import '../../../core/widgets/bms_ui_kit.dart';
 import '../data/appointment_repository.dart';
 import '../domain/appointment_models.dart';
 import 'appointment_confirmation_screen.dart';
 
-/// Medical Blue tokens from AGENTS-DESIGN.md
-const Color kMedicalBlue = Color(0xFF1E40AF);
-const Color kMedicalAccent = Color(0xFF0EA5E9);
-
-/// UC21 – Book Appointment screen for Patient Mobile App.
-/// Bottom sticky CTA, touch targets ≥ 44px, Medical Blue theme.
+/// Appointment Booking Form in Vietnamese Soft Healthcare SaaS Design.
 class BookAppointmentPage extends StatefulWidget {
   final String patientId;
   final AppointmentRepository repository;
@@ -48,6 +44,9 @@ class _BookAppointmentPageState extends State<BookAppointmentPage> {
   void initState() {
     super.initState();
     _selectedPackages = Set.from(widget.initialPackageIds);
+    if (_selectedPackages.isEmpty && widget.packages.isNotEmpty) {
+      _selectedPackages.add(widget.packages.first.packageId);
+    }
     _loadDoctors();
   }
 
@@ -62,20 +61,24 @@ class _BookAppointmentPageState extends State<BookAppointmentPage> {
     try {
       final dateStr = DateFormat('yyyy-MM-dd').format(_selectedDate);
       final list = await widget.repository.getAvailableDoctors(dateStr);
-      if (mounted) {
-        setState(() {
-          _doctors = list;
-          _loadingDoctors = false;
-        });
+      if (!mounted) return;
+      setState(() {
+        _doctors = list;
+        _loadingDoctors = false;
+        if (list.isNotEmpty) {
+          _doctorId = list.first.doctorId;
+        }
+      });
+      if (_doctorId != null) {
+        await _loadSlots();
       }
     } catch (e) {
-      if (mounted) {
-        setState(() {
-          _doctors = [];
-          _loadingDoctors = false;
-          _error = e.toString();
-        });
-      }
+      if (!mounted) return;
+      setState(() {
+        _doctors = [];
+        _loadingDoctors = false;
+        _error = e.toString().replaceFirst('Exception: ', '');
+      });
     }
   }
 
@@ -88,21 +91,26 @@ class _BookAppointmentPageState extends State<BookAppointmentPage> {
     });
     try {
       final dateStr = DateFormat('yyyy-MM-dd').format(_selectedDate);
-      final res = await widget.repository.getAvailableSlots(_doctorId!, dateStr);
-      if (mounted) {
-        setState(() {
-          _slots = res.slots;
-          _loadingSlots = false;
-        });
-      }
+      final res = await widget.repository.getAvailableSlots(
+        _doctorId!,
+        dateStr,
+      );
+      if (!mounted) return;
+      final firstAvailable = res.slots.where((s) => s.isAvailable);
+      setState(() {
+        _slots = res.slots;
+        _loadingSlots = false;
+        if (firstAvailable.isNotEmpty) {
+          _slotTime = firstAvailable.first.slotTime;
+        }
+      });
     } catch (e) {
-      if (mounted) {
-        setState(() {
-          _slots = [];
-          _loadingSlots = false;
-          _error = e.toString();
-        });
-      }
+      if (!mounted) return;
+      setState(() {
+        _slots = [];
+        _loadingSlots = false;
+        _error = e.toString().replaceFirst('Exception: ', '');
+      });
     }
   }
 
@@ -112,15 +120,7 @@ class _BookAppointmentPageState extends State<BookAppointmentPage> {
       context: context,
       initialDate: _selectedDate,
       firstDate: now,
-      lastDate: now.add(const Duration(days: 30)),
-      builder: (context, child) {
-        return Theme(
-          data: Theme.of(context).copyWith(
-            colorScheme: const ColorScheme.light(primary: kMedicalBlue),
-          ),
-          child: child!,
-        );
-      },
+      lastDate: now.add(const Duration(days: 60)),
     );
     if (picked != null && picked != _selectedDate) {
       setState(() => _selectedDate = picked);
@@ -146,26 +146,24 @@ class _BookAppointmentPageState extends State<BookAppointmentPage> {
         notes: _notes.trim().isEmpty ? null : _notes.trim(),
       );
       final result = await widget.repository.bookAppointment(request);
-      if (mounted) {
-        setState(() {
-          _result = result;
-          _submitting = false;
-        });
-      }
+      if (!mounted) return;
+      setState(() {
+        _result = result;
+        _submitting = false;
+      });
     } catch (e) {
-      if (mounted) {
-        setState(() {
-          _error = e.toString();
-          _submitting = false;
-        });
-      }
+      if (!mounted) return;
+      setState(() {
+        _error = e.toString().replaceFirst('Exception: ', '');
+        _submitting = false;
+      });
     }
   }
 
   @override
   Widget build(BuildContext context) {
     if (_result != null) {
-      return _SuccessView(
+      return _BookingSuccessView(
         result: _result!,
         onBookAnother: () {
           setState(() {
@@ -183,192 +181,203 @@ class _BookAppointmentPageState extends State<BookAppointmentPage> {
         !_submitting;
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Đặt lịch xét nghiệm'),
-        backgroundColor: kMedicalBlue,
-        foregroundColor: Colors.white,
-      ),
+      backgroundColor: AppColors.background,
+      appBar: AppBar(title: const Text('Đặt lịch xét nghiệm')),
       body: ListView(
-        padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
+        padding: const EdgeInsets.fromLTRB(16, 14, 16, 100),
         children: [
-          // Date
-          const Text('Ngày khám', style: TextStyle(fontWeight: FontWeight.w600)),
-          const SizedBox(height: 8),
-          InkWell(
-            onTap: _pickDate,
-            borderRadius: BorderRadius.circular(8),
-            child: Container(
-              height: 48,
-              padding: const EdgeInsets.symmetric(horizontal: 12),
-              decoration: BoxDecoration(
-                border: Border.all(color: Colors.grey.shade400),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Row(
-                children: [
-                  const Icon(Icons.calendar_today, size: 20, color: kMedicalBlue),
-                  const SizedBox(width: 12),
-                  Text(
-                    DateFormat('dd/MM/yyyy').format(_selectedDate),
-                    style: const TextStyle(fontSize: 16),
+          BmsSoftCard(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                const Text(
+                  '1. Chọn ngày khám & bác sĩ tư vấn',
+                  style: TextStyle(
+                    fontSize: 14.5,
+                    fontWeight: FontWeight.w800,
+                    color: AppColors.textPrimary,
                   ),
-                ],
-              ),
-            ),
-          ),
-          const SizedBox(height: 20),
-
-          // Doctor
-          const Text('Bác sĩ', style: TextStyle(fontWeight: FontWeight.w600)),
-          const SizedBox(height: 8),
-          DropdownButtonFormField<String>(
-            initialValue: _doctorId,
-            decoration: InputDecoration(
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-            ),
-            hint: Text(_loadingDoctors ? 'Đang tải…' : '— Chọn bác sĩ —'),
-            items: _doctors
-                .map(
-                  (d) => DropdownMenuItem(
-                    value: d.doctorId,
-                    child: Text('${d.doctorName} · ${d.specialty}'),
+                ),
+                const SizedBox(height: 10),
+                OutlinedButton.icon(
+                  onPressed: _pickDate,
+                  icon: const Icon(Icons.calendar_month_rounded, size: 19),
+                  label: Text(
+                    'Ngày khám: ${DateFormat('dd/MM/yyyy').format(_selectedDate)}',
                   ),
-                )
-                .toList(),
-            onChanged: _loadingDoctors
-                ? null
-                : (v) {
-                    setState(() => _doctorId = v);
-                    _loadSlots();
-                  },
-          ),
-          const SizedBox(height: 20),
-
-          // Slots
-          const Text('Khung giờ', style: TextStyle(fontWeight: FontWeight.w600)),
-          const SizedBox(height: 8),
-          if (_loadingSlots)
-            const Padding(
-              padding: EdgeInsets.symmetric(vertical: 12),
-              child: Center(child: CircularProgressIndicator(color: kMedicalBlue)),
-            )
-          else if (_slots.isEmpty && _doctorId != null)
-            const Text(
-              'Không có khung giờ trống. Vui lòng chọn ngày khác.',
-              style: TextStyle(color: Colors.grey),
-            )
-          else
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: _slots.map((slot) {
-                final selected = _slotTime == slot.slotTime;
-                return SizedBox(
-                  height: 44,
-                  child: ChoiceChip(
-                    label: Text(slot.slotTime),
-                    selected: selected,
-                    onSelected: slot.isAvailable
-                        ? (_) => setState(() => _slotTime = slot.slotTime)
-                        : null,
-                    selectedColor: kMedicalBlue,
-                    labelStyle: TextStyle(
-                      color: selected
-                          ? Colors.white
-                          : (slot.isAvailable ? Colors.black87 : Colors.grey),
+                ),
+                const SizedBox(height: 12),
+                DropdownButtonFormField<String>(
+                  initialValue: _doctorId,
+                  decoration: InputDecoration(
+                    labelText: _loadingDoctors
+                        ? 'Đang tải lịch bác sĩ...'
+                        : 'Chọn bác sĩ phụ trách',
+                    prefixIcon: const Icon(Icons.medical_services_outlined),
+                  ),
+                  items: _doctors
+                      .map(
+                        (d) => DropdownMenuItem(
+                          value: d.doctorId,
+                          child: Text(
+                            d.specialty.isNotEmpty
+                                ? '${d.doctorName} · ${d.specialty}'
+                                : d.doctorName,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      )
+                      .toList(),
+                  onChanged: _loadingDoctors
+                      ? null
+                      : (v) {
+                          setState(() => _doctorId = v);
+                          _loadSlots();
+                        },
+                ),
+                const SizedBox(height: 14),
+                const Text(
+                  '2. Chọn khung giờ lấy mẫu',
+                  style: TextStyle(
+                    fontSize: 14.5,
+                    fontWeight: FontWeight.w800,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+                const SizedBox(height: 10),
+                if (_loadingSlots)
+                  const BmsLoadingState(message: 'Đang kiểm tra khung giờ trống...')
+                else if (_slots.isEmpty && _doctorId != null)
+                  const Text(
+                    'Chưa có khung giờ trống trong ngày này. Vui lòng chọn ngày khác.',
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: AppColors.textSecondary,
                     ),
+                  )
+                else
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: _slots.map((slot) {
+                      final selected = _slotTime == slot.slotTime;
+                      return ChoiceChip(
+                        label: Text(slot.slotTime),
+                        selected: selected,
+                        showCheckmark: false,
+                        selectedColor: AppColors.primary,
+                        onSelected: slot.isAvailable
+                            ? (_) => setState(() => _slotTime = slot.slotTime)
+                            : null,
+                        labelStyle: TextStyle(
+                          fontWeight: FontWeight.w700,
+                          color: selected
+                              ? Colors.white
+                              : (slot.isAvailable
+                                    ? AppColors.textPrimary
+                                    : AppColors.textTertiary),
+                        ),
+                      );
+                    }).toList(),
                   ),
-                );
-              }).toList(),
+              ],
             ),
-          const SizedBox(height: 20),
-
-          // Packages
-          const Text(
-            'Gói xét nghiệm *',
-            style: TextStyle(fontWeight: FontWeight.w600),
           ),
-          const SizedBox(height: 8),
-          ...widget.packages.map((pkg) {
-            final checked = _selectedPackages.contains(pkg.packageId);
-            return CheckboxListTile(
-              value: checked,
-              onChanged: (v) {
-                setState(() {
-                  if (v == true) {
-                    _selectedPackages.add(pkg.packageId);
-                  } else {
-                    _selectedPackages.remove(pkg.packageId);
-                  }
-                });
-              },
-              title: Text(pkg.packageName),
-              subtitle: Text(
-                '${NumberFormat.decimalPattern('vi').format(pkg.price)} đ'
-                '${pkg.description != null ? ' · ${pkg.description}' : ''}',
-              ),
-              activeColor: kMedicalBlue,
-              contentPadding: EdgeInsets.zero,
-              controlAffinity: ListTileControlAffinity.leading,
-            );
-          }),
-          const SizedBox(height: 12),
-
-          // Notes
-          const Text('Notes (optional)', style: TextStyle(fontWeight: FontWeight.w600)),
-          const SizedBox(height: 8),
-          TextField(
-            maxLines: 2,
-            maxLength: 500,
-            decoration: InputDecoration(
-              hintText: 'Triệu chứng, yêu cầu đặc biệt…',
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+          const SizedBox(height: 14),
+          BmsSoftCard(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text(
+                  '3. Gói xét nghiệm (${_selectedPackages.length} gói đã chọn)',
+                  style: const TextStyle(
+                    fontSize: 14.5,
+                    fontWeight: FontWeight.w800,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                if (widget.packages.isEmpty)
+                  const Text(
+                    'Không có gói xét nghiệm khả dụng.',
+                    style: TextStyle(color: AppColors.textSecondary),
+                  )
+                else
+                  ...widget.packages.map((pkg) {
+                    final checked = _selectedPackages.contains(pkg.packageId);
+                    return CheckboxListTile(
+                      value: checked,
+                      dense: true,
+                      contentPadding: EdgeInsets.zero,
+                      activeColor: AppColors.primary,
+                      controlAffinity: ListTileControlAffinity.leading,
+                      title: Text(
+                        pkg.packageName,
+                        style: const TextStyle(
+                          fontSize: 13.5,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      subtitle: Text(
+                        '${BmsFormatters.currency(pkg.price)}${pkg.description != null ? ' · ${pkg.description}' : ''}',
+                        style: const TextStyle(fontSize: 12),
+                      ),
+                      onChanged: (v) {
+                        setState(() {
+                          if (v == true) {
+                            _selectedPackages.add(pkg.packageId);
+                          } else {
+                            _selectedPackages.remove(pkg.packageId);
+                          }
+                        });
+                      },
+                    );
+                  }),
+                const SizedBox(height: 12),
+                TextField(
+                  maxLines: 2,
+                  maxLength: 500,
+                  decoration: const InputDecoration(
+                    labelText: 'Ghi chú triệu chứng (tùy chọn)',
+                    hintText: 'Nhập triệu chứng hoặc lưu ý nhịn ăn sáng...',
+                  ),
+                  onChanged: (v) => _notes = v,
+                ),
+              ],
             ),
-            onChanged: (v) => _notes = v,
           ),
-
           if (_error != null) ...[
             const SizedBox(height: 12),
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: Colors.red.shade50,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Text(_error!, style: TextStyle(color: Colors.red.shade800)),
-            ),
+            BmsErrorState(message: _error!),
           ],
         ],
       ),
-      // Sticky bottom CTA (AGENTS-DESIGN Rule 13)
       bottomNavigationBar: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+        child: Container(
+          padding: const EdgeInsets.fromLTRB(16, 10, 16, 12),
+          decoration: const BoxDecoration(
+            color: AppColors.surface,
+            border: Border(top: BorderSide(color: AppColors.cardBorder)),
+          ),
           child: SizedBox(
-            height: 52,
-            child: ElevatedButton(
+            height: 48,
+            child: FilledButton.icon(
               onPressed: canSubmit ? _submit : null,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: kMedicalBlue,
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-              ),
-              child: _submitting
+              icon: _submitting
                   ? const SizedBox(
-                      width: 24,
-                      height: 24,
+                      width: 18,
+                      height: 18,
                       child: CircularProgressIndicator(
                         strokeWidth: 2,
                         color: Colors.white,
                       ),
                     )
-                  : const Text(
-                      'Xác nhận đặt lịch',
-                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-                    ),
+                  : const Icon(Icons.check_circle_outline_rounded, size: 19),
+              label: Text(
+                _submitting ? 'Đang đặt lịch...' : 'Xác nhận đặt lịch hẹn',
+              ),
             ),
           ),
         ),
@@ -377,147 +386,116 @@ class _BookAppointmentPageState extends State<BookAppointmentPage> {
   }
 }
 
-class _SuccessView extends StatelessWidget {
+class _BookingSuccessView extends StatelessWidget {
   final BookAppointmentResponse result;
   final VoidCallback onBookAnother;
 
-  const _SuccessView({required this.result, required this.onBookAnother});
+  const _BookingSuccessView({
+    required this.result,
+    required this.onBookAnother,
+  });
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Đặt lịch thành công'),
-        backgroundColor: kMedicalBlue,
-        foregroundColor: Colors.white,
-      ),
-      body: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          children: [
-            const SizedBox(height: 24),
-            Container(
-              width: 72,
-              height: 72,
-              decoration: const BoxDecoration(
-                color: Color(0xFFDCFCE7),
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(Icons.check, size: 40, color: Color(0xFF16A34A)),
-            ),
-            const SizedBox(height: 16),
-            const Text(
-              'Đặt lịch thành công',
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-                color: kMedicalBlue,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              result.message,
-              textAlign: TextAlign.center,
-              style: TextStyle(color: Colors.grey.shade700),
-            ),
-            const SizedBox(height: 24),
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Colors.grey.shade100,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _infoRow('Appointment code', result.appointmentCode),
-                  _infoRow('Doctor', '${result.doctorName} (${result.specialty})'),
-                  _infoRow(
-                    'Date / time',
-                    '${_formatDate(result.appointmentDate)} · ${result.slotTime}',
-                  ),
-                  _infoRow(
-                    'Test package',
-                    (result.packageId != null && result.packageId!.isNotEmpty)
-                        ? result.packageId!
-                        : '—',
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 16),
-            Text(
-              'Please arrive on time with your ID. Use the appointment code at check-in.',
-              textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 13, color: Colors.grey.shade600),
-            ),
-            const Spacer(),
-            SizedBox(
-              width: double.infinity,
-              height: 48,
-              child: ElevatedButton.icon(
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => AppointmentConfirmationScreen(
-                        appointmentCode: result.appointmentCode,
-                      ),
-                    ),
-                  );
-                },
-                icon: const Icon(Icons.qr_code_2_rounded),
-                label: const Text('Xem mã QR Check-in & Hướng dẫn'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: kMedicalBlue,
-                  foregroundColor: Colors.white,
-                ),
-              ),
-            ),
-            const SizedBox(height: 10),
-            SizedBox(
-              width: double.infinity,
-              height: 48,
-              child: OutlinedButton(
-                onPressed: onBookAnother,
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: kMedicalBlue,
-                  side: const BorderSide(color: kMedicalBlue),
-                ),
-                child: const Text('Đặt lịch khác'),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _infoRow(String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      backgroundColor: AppColors.background,
+      appBar: AppBar(title: const Text('Đặt lịch thành công')),
+      body: ListView(
+        padding: const EdgeInsets.all(20),
         children: [
-          SizedBox(
-            width: 110,
-            child: Text(label, style: TextStyle(color: Colors.grey.shade600, fontSize: 13)),
+          BmsSoftCard(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              children: [
+                Container(
+                  width: 64,
+                  height: 64,
+                  decoration: const BoxDecoration(
+                    color: AppColors.successLight,
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    Icons.check_rounded,
+                    size: 36,
+                    color: AppColors.success,
+                  ),
+                ),
+                const SizedBox(height: 14),
+                const Text(
+                  'Đã ghi nhận lịch hẹn khám',
+                  style: TextStyle(
+                    fontSize: 19,
+                    fontWeight: FontWeight.w800,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  result.message,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    fontSize: 13,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+                const Divider(height: 26),
+                BmsInfoRow(
+                  label: 'Mã lịch hẹn',
+                  value: result.appointmentCode,
+                  isMono: true,
+                  isBold: true,
+                ),
+                BmsInfoRow(
+                  label: 'Bác sĩ phụ trách',
+                  value: result.specialty.isNotEmpty
+                      ? '${result.doctorName} (${result.specialty})'
+                      : result.doctorName,
+                ),
+                BmsInfoRow(
+                  label: 'Ngày & giờ hẹn',
+                  value:
+                      '${BmsFormatters.date(result.appointmentDate)} · ${result.slotTime}',
+                ),
+                const SizedBox(height: 12),
+                const Text(
+                  'Vui lòng mang theo thẻ CCCD và đưa mã QR lịch hẹn tại quầy tiếp đón trước giờ hẹn 15 phút.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 12.5,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+              ],
+            ),
           ),
-          Expanded(
-            child: Text(value, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+          const SizedBox(height: 16),
+          SizedBox(
+            height: 48,
+            child: FilledButton.icon(
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => AppointmentConfirmationScreen(
+                      appointmentCode: result.appointmentCode,
+                    ),
+                  ),
+                );
+              },
+              icon: const Icon(Icons.qr_code_2_rounded, size: 20),
+              label: const Text('Xem mã QR Check-in & Hướng dẫn'),
+            ),
+          ),
+          const SizedBox(height: 10),
+          SizedBox(
+            height: 48,
+            child: OutlinedButton(
+              onPressed: onBookAnother,
+              child: const Text('Đặt thêm lịch hẹn khác'),
+            ),
           ),
         ],
       ),
     );
-  }
-
-  String _formatDate(String iso) {
-    try {
-      final d = DateTime.parse(iso);
-      return DateFormat('dd/MM/yyyy').format(d);
-    } catch (_) {
-      return iso;
-    }
   }
 }
