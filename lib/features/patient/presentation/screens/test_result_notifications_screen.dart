@@ -42,10 +42,7 @@ class _TestResultNotificationsScreenState extends State<TestResultNotificationsS
   }
 
   bool get _isAuthorizedPatient {
-    final roleId = BmsAuth.user?['roleId'];
-    final roleName = (BmsAuth.user?['roleName'] ?? BmsAuth.user?['role'] ?? '').toString().toLowerCase();
-    if (roleId == null && roleName.isEmpty) return true;
-    return roleId == 5 || roleId == '5' || roleName.contains('patient') || roleName.contains('bệnh nhân');
+    return BmsAuth.userRole == 'Patient';
   }
 
   @override
