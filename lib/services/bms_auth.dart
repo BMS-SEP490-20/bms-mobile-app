@@ -1,26 +1,35 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:jwt_decoder/jwt_decoder.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../core/network/api_client.dart';
 import '../core/network/bms_http_client.dart';
 
-/// Default API base URL constant retained for backward-compatible repository imports.
-const String apiBaseUrl = 'http://localhost:5000';
+/// Resolved active base URL getter for legacy consumers.
+String get apiBaseUrl => BmsHttpClient.resolvedBaseUrl;
+
+/// Canonical 6-Role Constants matching BMS Backend & Web Workstation.
+class BmsRoles {
+  BmsRoles._();
+  static const int admin = 1;
+  static const int doctor = 2;
+  static const int lab = 3;
+  static const int receptionist = 4;
+  static const int patient = 5;
+  static const int manager = 6;
+}
 
 /// Clinical Authentication & Session Persistence Service.
-/// Supports the 3 mobile roles (Patient, Doctor, Receptionist) and detects Web-only workstation roles.
+/// Supports all 6 canonical roles + Guest mode, with automatic JWT refresh rotation.
 class BmsAuth {
-  /// Active JWT Bearer access token.
   static String? accessToken;
-
-  /// Long-lived refresh token for session renewal.
   static String? refreshToken;
-
-  /// Cached user profile claims (id, username, email, fullName, roleId, role).
   static Map<String, dynamic>? user;
 
-  /// Returns true when an access token is active in memory.
+  /// Registered by [BmsMobileApp] so a failed 401 refresh navigates cleanly to `/login`.
+  static VoidCallback? onSessionExpired;
+
   static bool get isLoggedIn => accessToken != null && accessToken!.isNotEmpty;
 
   /// Resolves the canonical role name for any user payload.
@@ -33,18 +42,18 @@ class BmsAuth {
           .trim(),
     );
     switch (roleId) {
-      case 1:
+      case BmsRoles.admin:
         return 'Admin';
-      case 2:
+      case BmsRoles.doctor:
         return 'Doctor';
-      case 3:
+      case BmsRoles.lab:
         return 'Lab';
-      case 4:
+      case BmsRoles.receptionist:
         return 'Receptionist';
-      case 5:
+      case BmsRoles.patient:
       case 9:
         return 'Patient';
-      case 6:
+      case BmsRoles.manager:
         return 'Manager';
     }
 
@@ -71,13 +80,11 @@ class BmsAuth {
     return rawRole;
   }
 
-  /// Normalized role name of the currently signed-in user.
   static String get userRole {
     if (!isLoggedIn || user == null) return '';
     return resolveRoleFromMap(user);
   }
 
-  /// Numeric role ID of the currently signed-in user (0 if unknown).
   static int get userRoleId {
     if (!isLoggedIn || user == null) return 0;
     final parsed = int.tryParse(
@@ -85,26 +92,26 @@ class BmsAuth {
           .toString()
           .trim(),
     );
-    if (parsed != null && parsed > 0) return parsed;
+    if (parsed == 9) return BmsRoles.patient;
+    if (parsed != null && parsed >= 1 && parsed <= 6) return parsed;
     switch (userRole) {
       case 'Admin':
-        return 1;
+        return BmsRoles.admin;
       case 'Doctor':
-        return 2;
+        return BmsRoles.doctor;
       case 'Lab':
-        return 3;
+        return BmsRoles.lab;
       case 'Receptionist':
-        return 4;
+        return BmsRoles.receptionist;
       case 'Patient':
-        return 5;
+        return BmsRoles.patient;
       case 'Manager':
-        return 6;
+        return BmsRoles.manager;
       default:
         return 0;
     }
   }
 
-  /// Vietnamese display label for the signed-in role.
   static String get roleLabelVi => roleNameVi(userRole);
 
   static String roleNameVi(String canonicalRole) {
@@ -112,7 +119,7 @@ class BmsAuth {
       case 'Patient':
         return 'Bệnh nhân';
       case 'Doctor':
-        return 'Bác sĩ khám bệnh';
+        return 'Bác sĩ chuyên khoa';
       case 'Receptionist':
         return 'Lễ tân tiếp đón';
       case 'Admin':
@@ -122,19 +129,19 @@ class BmsAuth {
       case 'Manager':
         return 'Quản lý phòng xét nghiệm';
       default:
-        return canonicalRole.isEmpty ? 'Chưa xác định' : canonicalRole;
+        return canonicalRole.isEmpty ? 'Khách' : canonicalRole;
     }
   }
 
-  static bool get isPatient => isLoggedIn && userRole == 'Patient';
+  static bool get isAdmin => isLoggedIn && userRole == 'Admin';
   static bool get isDoctor => isLoggedIn && userRole == 'Doctor';
+  static bool get isLab => isLoggedIn && userRole == 'Lab';
   static bool get isReceptionist => isLoggedIn && userRole == 'Receptionist';
+  static bool get isPatient => isLoggedIn && userRole == 'Patient';
+  static bool get isManager => isLoggedIn && userRole == 'Manager';
+  static bool get isStaff =>
+      isAdmin || isDoctor || isLab || isReceptionist || isManager;
 
-  /// True only for the 3 roles supported on the BMS Mobile App (Patient, Doctor, Receptionist).
-  static bool get isMobileSupportedRole =>
-      isPatient || isDoctor || isReceptionist;
-
-  /// Current authenticated user account ID.
   static String get currentUserId {
     if (user == null) return '';
     return (user!['id'] ?? user!['userId'] ?? user!['sub'] ?? '')
@@ -142,7 +149,6 @@ class BmsAuth {
         .trim();
   }
 
-  /// Current authenticated user display name.
   static String get currentUserName {
     if (user == null) return '';
     return (user!['fullName'] ??
@@ -155,7 +161,17 @@ class BmsAuth {
         .trim();
   }
 
-  /// Authenticates user credentials via `POST /api/auth/login` and persists session to SharedPreferences.
+  static String get currentUserEmail {
+    if (user == null) return '';
+    return (user!['email'] ?? '').toString().trim();
+  }
+
+  static String get currentUserUsername {
+    if (user == null) return '';
+    return (user!['username'] ?? '').toString().trim();
+  }
+
+  /// Authenticates user credentials via `POST /api/auth/login` and persists session.
   static Future<Map<String, dynamic>> login({
     required String usernameOrEmail,
     required String password,
@@ -225,10 +241,7 @@ class BmsAuth {
         'retryAfterMinutes': map['retryAfterMinutes'],
       };
     } on BmsApiException catch (e) {
-      return {
-        'success': false,
-        'message': e.message,
-      };
+      return {'success': false, 'message': e.message};
     } catch (_) {
       return {
         'success': false,
@@ -239,7 +252,6 @@ class BmsAuth {
   }
 
   /// Restores persisted JWT session on app startup.
-  /// Automatically attempts `POST /api/auth/refresh` when the access JWT is expired.
   static Future<bool> restoreSession({http.Client? client}) async {
     final prefs = await SharedPreferences.getInstance();
     final storedToken =
@@ -308,6 +320,25 @@ class BmsAuth {
     return true;
   }
 
+  /// Runtime refresh invoked by [BmsHttpClient] on HTTP 401.
+  static Future<bool> tryRefreshCurrentSession({http.Client? client}) async {
+    var currentRefresh = refreshToken?.trim() ?? '';
+    if (currentRefresh.isEmpty) {
+      final prefs = await SharedPreferences.getInstance();
+      currentRefresh =
+          (prefs.getString('refreshToken') ??
+                  prefs.getString('bms_refresh_token') ??
+                  '')
+              .trim();
+    }
+    if (currentRefresh.isEmpty) return false;
+    return _tryRefreshToken(
+      currentRefresh,
+      fallbackUser: user ?? <String, dynamic>{},
+      client: client,
+    );
+  }
+
   static Future<bool> _tryRefreshToken(
     String refresh, {
     required Map<String, dynamic> fallbackUser,
@@ -363,6 +394,9 @@ class BmsAuth {
       normalizedUser['role'] = canonical;
       normalizedUser['roleName'] = canonical;
     }
+    if (normalizedUser['roleId'] == 9) {
+      normalizedUser['roleId'] = BmsRoles.patient;
+    }
     user = normalizedUser;
 
     final prefs = await SharedPreferences.getInstance();
@@ -411,31 +445,43 @@ class BmsAuth {
     }
   }
 
-  /// Dispatches a password recovery OTP to the user's registered email address.
+  /// Step 1 of Forgot Password (matches `authApi.jsx`: `/api/auth/forgot` -> fallback `/api/auth/forgot-password` unless 404).
   static Future<Map<String, dynamic>> sendPasswordRecoveryOtp({
     required String email,
     http.Client? client,
   }) async {
     final transport = BmsHttpClient(client: client);
     try {
-      final res = await transport.post(
-        '/api/auth/forgot-password',
+      var res = await transport.post(
+        '/api/auth/forgot',
         includeAuth: false,
         body: {'email': email.trim()},
         timeout: const Duration(seconds: 15),
       );
+      if (!res.isSuccess && res.statusCode != 404) {
+        final fallbackRes = await transport.post(
+          '/api/auth/forgot-password',
+          includeAuth: false,
+          body: {'email': email.trim()},
+          timeout: const Duration(seconds: 15),
+        );
+        if (fallbackRes.isSuccess || fallbackRes.statusCode == 404) {
+          res = fallbackRes;
+        }
+      }
       if (res.isSuccess) {
         return {
           'success': true,
           'message': res.extractMessage(
-            'Nếu email tồn tại trong hệ thống, mã khôi phục đã được gửi.',
+            'Mã OTP khôi phục gồm 6 chữ số đã được gửi đến email của bạn.',
           ),
         };
       }
       return {
         'success': false,
+        'statusCode': res.statusCode,
         'message': res.extractMessage(
-          'Gửi mã xác thực thất bại (Mã lỗi: ${res.statusCode}).',
+          'Không thể gửi mã khôi phục. Vui lòng kiểm tra lại địa chỉ email.',
         ),
       };
     } on BmsApiException catch (e) {
@@ -445,6 +491,79 @@ class BmsAuth {
         'success': false,
         'message': 'Không thể kết nối máy chủ gửi mã khôi phục.',
       };
+    }
+  }
+
+  /// Step 2 of Forgot Password: `POST /api/auth/verify-reset-otp`.
+  static Future<Map<String, dynamic>> verifyPasswordResetOtp({
+    required String email,
+    required String otp,
+    http.Client? client,
+  }) async {
+    final transport = BmsHttpClient(client: client);
+    try {
+      final res = await transport.post(
+        '/api/auth/verify-reset-otp',
+        includeAuth: false,
+        body: {'email': email.trim(), 'otp': otp.trim()},
+      );
+      if (res.isSuccess) {
+        return {
+          'success': true,
+          'message': res.extractMessage(
+            'Mã OTP hợp lệ. Tiếp tục đặt mật khẩu mới.',
+          ),
+        };
+      }
+      return {
+        'success': false,
+        'statusCode': res.statusCode,
+        'message': res.extractMessage('Mã OTP không hợp lệ. Vui lòng thử lại.'),
+      };
+    } on BmsApiException catch (e) {
+      return {'success': false, 'message': e.message};
+    }
+  }
+
+  /// Step 3 of Forgot Password: `POST /api/auth/reset`.
+  static Future<Map<String, dynamic>> resetPassword({
+    required String email,
+    required String otp,
+    required String newPassword,
+    required String confirmNewPassword,
+    http.Client? client,
+  }) async {
+    final transport = BmsHttpClient(client: client);
+    try {
+      final res = await transport.post(
+        '/api/auth/reset',
+        includeAuth: false,
+        body: {
+          'email': email.trim(),
+          'otp': otp.trim(),
+          'newPassword': newPassword,
+          'confirmNewPassword': confirmNewPassword,
+        },
+      );
+      if (res.isSuccess) {
+        return {
+          'success': true,
+          'message': res.extractMessage(
+            'Đặt lại mật khẩu thành công! Vui lòng đăng nhập với mật khẩu mới.',
+          ),
+        };
+      }
+      final body = res.bodyAsMap;
+      return {
+        'success': false,
+        'statusCode': res.statusCode,
+        'errorCode': body['errorCode']?.toString(),
+        'message': res.extractMessage(
+          'Đặt lại mật khẩu thất bại. Vui lòng kiểm tra mã OTP.',
+        ),
+      };
+    } on BmsApiException catch (e) {
+      return {'success': false, 'message': e.message};
     }
   }
 
@@ -502,8 +621,7 @@ class BmsAuth {
               )
               .timeout(const Duration(seconds: 5));
           if (response.statusCode < 500) break;
-        } catch (_) {
-        }
+        } catch (_) {}
       }
     } finally {
       if (client == null) transport.close();

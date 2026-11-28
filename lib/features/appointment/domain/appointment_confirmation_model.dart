@@ -1,6 +1,5 @@
-/// Domain model for UC22 – Appointment Confirmation & Notification details (Flutter).
-/// Consumes GET /api/appointments/{id}/confirmation.
-
+/// Domain model for Appointment Confirmation & QR Check-in details.
+/// Consumes `GET /api/appointments/{id}/confirmation` (strict zero-SMS scope).
 library;
 
 class TimelineItemModel {
@@ -31,14 +30,12 @@ class DeliveryStatusModel {
   final String? emailSentAt;
   final bool pushSent;
   final String? pushSentAt;
-  final bool smsConfigured;
 
   const DeliveryStatusModel({
     this.emailSent = true,
     this.emailSentAt,
     this.pushSent = true,
     this.pushSentAt,
-    this.smsConfigured = false,
   });
 
   factory DeliveryStatusModel.fromJson(Map<String, dynamic> json) {
@@ -47,7 +44,6 @@ class DeliveryStatusModel {
       emailSentAt: json['emailSentAt']?.toString(),
       pushSent: json['pushSent'] != false,
       pushSentAt: json['pushSentAt']?.toString(),
-      smsConfigured: json['smsConfigured'] == true,
     );
   }
 }
@@ -91,8 +87,18 @@ class AppointmentConfirmationModel {
     required this.reminderSchedule,
   });
 
+  bool get isQrUnlocked {
+    final st = status.toLowerCase();
+    final pay = paymentStatus.toLowerCase();
+    return pay == 'paid' ||
+        st == 'confirmed' ||
+        st == 'checkedin' ||
+        st == 'inprogress' ||
+        st == 'completed';
+  }
+
   factory AppointmentConfirmationModel.fromJson(Map<String, dynamic> json) {
-    final scheduleRaw = json['reminderSchedule'] as List<dynamic>? ?? [];
+    final scheduleRaw = json['reminderSchedule'] as List<dynamic>? ?? const [];
     return AppointmentConfirmationModel(
       appointmentId: json['appointmentId']?.toString() ?? '',
       appointmentCode: json['appointmentCode']?.toString() ?? '',
@@ -108,12 +114,17 @@ class AppointmentConfirmationModel {
       status: json['status']?.toString() ?? '',
       paymentStatus: json['paymentStatus']?.toString() ?? '',
       fastingInstructions: json['fastingInstructions']?.toString() ?? '',
-      qrCodeData: json['qrCodeData']?.toString() ?? (json['appointmentCode']?.toString() ?? ''),
+      qrCodeData:
+          json['qrCodeData']?.toString() ??
+          (json['appointmentCode']?.toString() ?? ''),
       deliveryStatus: json['deliveryStatus'] is Map<String, dynamic>
-          ? DeliveryStatusModel.fromJson(json['deliveryStatus'] as Map<String, dynamic>)
+          ? DeliveryStatusModel.fromJson(
+              json['deliveryStatus'] as Map<String, dynamic>,
+            )
           : const DeliveryStatusModel(),
       reminderSchedule: scheduleRaw
-          .map((e) => TimelineItemModel.fromJson(e as Map<String, dynamic>))
+          .whereType<Map>()
+          .map((e) => TimelineItemModel.fromJson(Map<String, dynamic>.from(e)))
           .toList(),
     );
   }

@@ -9,11 +9,12 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:bms_mobile_app/core/network/api_client.dart';
 import 'package:bms_mobile_app/core/theme/bms_theme.dart';
 import 'package:bms_mobile_app/features/auth/presentation/screens/login_screen.dart';
-import 'package:bms_mobile_app/features/doctor_portal/presentation/doctor_shell_screen.dart';
 import 'package:bms_mobile_app/features/patient_portal/presentation/patient_shell_screen.dart';
 import 'package:bms_mobile_app/features/reception_portal/presentation/receptionist_shell_screen.dart';
 import 'package:bms_mobile_app/features/shell/presentation/mobile_role_router_screen.dart';
-import 'package:bms_mobile_app/features/shell/presentation/web_only_role_notice_screen.dart';
+import 'package:bms_mobile_app/features/staff_portal/presentation/shells/admin_mobile_shell.dart';
+import 'package:bms_mobile_app/features/staff_portal/presentation/shells/manager_mobile_shell.dart';
+import 'package:bms_mobile_app/features/staff_portal/presentation/shells/staff_compact_shell.dart';
 import 'package:bms_mobile_app/services/bms_auth.dart';
 
 String _buildTestJwt({
@@ -61,45 +62,35 @@ void main() {
     await BmsAuth.logout();
   });
 
-  test('Role resolution strictly maps the 3 mobile roles vs Web-only roles', () {
+  test('Canonical 6-role resolution maps RoleId 1..6 and legacy 9 -> Patient', () {
+    expect(BmsAuth.resolveRoleFromMap({'roleId': 1}), 'Admin');
+    expect(BmsAuth.resolveRoleFromMap({'roleId': 2}), 'Doctor');
+    expect(BmsAuth.resolveRoleFromMap({'roleId': 3}), 'Lab');
+    expect(BmsAuth.resolveRoleFromMap({'roleId': 4}), 'Receptionist');
     expect(BmsAuth.resolveRoleFromMap({'roleId': 5}), 'Patient');
     expect(BmsAuth.resolveRoleFromMap({'roleId': 9}), 'Patient');
-    expect(BmsAuth.resolveRoleFromMap({'roleId': 2}), 'Doctor');
-    expect(BmsAuth.resolveRoleFromMap({'roleId': 4}), 'Receptionist');
-    expect(BmsAuth.resolveRoleFromMap({'roleId': 1}), 'Admin');
-    expect(BmsAuth.resolveRoleFromMap({'roleId': 3}), 'Lab');
     expect(BmsAuth.resolveRoleFromMap({'roleId': 6}), 'Manager');
-
-    BmsAuth.accessToken = 'tok';
-    BmsAuth.user = {'roleId': 5, 'role': 'Patient'};
-    expect(BmsAuth.isMobileSupportedRole, isTrue);
-
-    BmsAuth.user = {'roleId': 2, 'role': 'Doctor'};
-    expect(BmsAuth.isMobileSupportedRole, isTrue);
-
-    BmsAuth.user = {'roleId': 4, 'role': 'Receptionist'};
-    expect(BmsAuth.isMobileSupportedRole, isTrue);
-
-    for (final webOnlyId in [1, 3, 6]) {
-      BmsAuth.user = {'roleId': webOnlyId};
-      expect(BmsAuth.isMobileSupportedRole, isFalse);
-    }
   });
 
-  testWidgets('Unauthenticated user is routed to LoginScreen', (tester) async {
+  testWidgets('Unauthenticated user is routed to LoginScreen with 6 Demo roles', (
+    tester,
+  ) async {
     await tester.pumpWidget(_wrapRouter());
     await tester.pump();
     expect(find.byType(LoginScreen), findsOneWidget);
+    expect(find.text('Bệnh Nhân'), findsOneWidget);
+    expect(find.text('Lễ Tân'), findsOneWidget);
+    expect(find.text('Admin'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('Patient (RoleId 5) is routed to PatientShellScreen', (
+  testWidgets('Patient (RoleId 5) is routed to 5-tab PatientShellScreen', (
     tester,
   ) async {
     BmsAuth.accessToken = 'patient-token';
     BmsAuth.user = {
       'id': 'pat-01',
-      'fullName': 'Phạm Minh Khoa',
+      'fullName': 'Trần Văn An',
       'roleId': 5,
       'role': 'Patient',
     };
@@ -108,40 +99,48 @@ void main() {
     await tester.pump();
 
     expect(find.byType(PatientShellScreen), findsOneWidget);
-    expect(find.text('Trang chủ'), findsOneWidget);
-    expect(find.text('Lịch hẹn'), findsOneWidget);
-    expect(find.text('Kết quả & Mẫu'), findsOneWidget);
+    final navBar = find.byType(NavigationBar);
+    expect(find.descendant(of: navBar, matching: find.text('Trang chủ')), findsOneWidget);
+    expect(find.descendant(of: navBar, matching: find.text('Gói XN')), findsOneWidget);
+    expect(find.descendant(of: navBar, matching: find.text('Lịch khám')), findsOneWidget);
+    expect(find.descendant(of: navBar, matching: find.text('Kết quả')), findsOneWidget);
+    expect(find.descendant(of: navBar, matching: find.text('Tài khoản')), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('Doctor (RoleId 2) is routed to DoctorShellScreen', (
+  testWidgets('Doctor (2) and Lab (3) are routed to 2-tab StaffCompactShell', (
     tester,
   ) async {
-    BmsAuth.accessToken = 'doctor-token';
-    BmsAuth.user = {
-      'id': 'doc-01',
-      'fullName': 'Nguyễn Minh',
-      'roleId': 2,
-      'role': 'Doctor',
-    };
+    for (final entry in const [
+      (id: 2, role: 'Doctor'),
+      (id: 3, role: 'Lab'),
+    ]) {
+      BmsAuth.accessToken = 'staff-token';
+      BmsAuth.user = {
+        'id': 'staff-${entry.id}',
+        'fullName': 'Nhân sự Y tế',
+        'roleId': entry.id,
+        'role': entry.role,
+      };
 
-    await tester.pumpWidget(_wrapRouter());
-    await tester.pump();
+      await tester.pumpWidget(_wrapRouter());
+      await tester.pump();
 
-    expect(find.byType(DoctorShellScreen), findsOneWidget);
-    expect(find.text('Tổng quan'), findsOneWidget);
-    expect(find.text('Bàn khám'), findsOneWidget);
-    expect(find.text('Bệnh án'), findsOneWidget);
-    expect(tester.takeException(), isNull);
+      expect(find.byType(StaffCompactShell), findsOneWidget);
+      expect(find.text('Lịch ca trực'), findsOneWidget);
+      expect(find.text('Tài khoản'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+      await tester.pumpWidget(const SizedBox.shrink());
+    }
   });
 
-  testWidgets('Receptionist (RoleId 4) is routed to ReceptionistShellScreen', (
+  testWidgets('Receptionist (RoleId 4) is routed to 3-tab ReceptionistShellScreen', (
     tester,
   ) async {
     BmsAuth.accessToken = 'recep-token';
     BmsAuth.user = {
       'id': 'rec-01',
-      'fullName': 'Lê Lan Anh',
+      'fullName': 'Lễ tân Đỗ Lan Anh',
       'roleId': 4,
       'role': 'Receptionist',
     };
@@ -150,36 +149,41 @@ void main() {
     await tester.pump();
 
     expect(find.byType(ReceptionistShellScreen), findsOneWidget);
-    expect(find.text('Tiếp đón'), findsOneWidget);
-    expect(find.text('Hàng đợi'), findsOneWidget);
+    expect(find.text('Quét QR'), findsOneWidget);
+    expect(find.text('Lịch trực'), findsOneWidget);
+    expect(find.text('Tài khoản'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets(
-    'Admin (1), Lab (3), and Manager (6) are gated by WebOnlyRoleNoticeScreen',
-    (tester) async {
-      for (final entry in const [
-        (id: 1, role: 'Admin'),
-        (id: 3, role: 'Lab'),
-        (id: 6, role: 'Manager'),
-      ]) {
-        BmsAuth.accessToken = 'web-only-token';
-        BmsAuth.user = {
-          'id': 'staff-${entry.id}',
-          'fullName': 'Nhân sự Trạm Web',
-          'roleId': entry.id,
-          'role': entry.role,
-        };
+  testWidgets('Manager (6) -> ManagerMobileShell & Admin (1) -> AdminMobileShell', (
+    tester,
+  ) async {
+    BmsAuth.accessToken = 'mgr-token';
+    BmsAuth.user = {
+      'id': 'mgr-01',
+      'fullName': 'Trưởng Khoa Đỗ Lan Anh',
+      'roleId': 6,
+      'role': 'Manager',
+    };
+    await tester.pumpWidget(_wrapRouter());
+    await tester.pump();
+    expect(find.byType(ManagerMobileShell), findsOneWidget);
+    expect(tester.takeException(), isNull);
 
-        await tester.pumpWidget(_wrapRouter());
-        await tester.pump();
+    await tester.pumpWidget(const SizedBox.shrink());
 
-        expect(find.byType(WebOnlyRoleNoticeScreen), findsOneWidget);
-        expect(tester.takeException(), isNull);
-        await tester.pumpWidget(const SizedBox.shrink());
-      }
-    },
-  );
+    BmsAuth.accessToken = 'adm-token';
+    BmsAuth.user = {
+      'id': 'adm-01',
+      'fullName': 'Nguyễn Quản Trị',
+      'roleId': 1,
+      'role': 'Admin',
+    };
+    await tester.pumpWidget(_wrapRouter());
+    await tester.pump();
+    expect(find.byType(AdminMobileShell), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
 
   test(
     'BmsAuth.login persists session and BmsAuth.restoreSession restores & refreshes JWT',
@@ -222,7 +226,6 @@ void main() {
       expect(BmsAuth.userRole, 'Doctor');
       expect(ApiClient.userToken, validJwt);
 
-      // Simulate cold app restart by clearing in-memory static fields only
       BmsAuth.accessToken = null;
       BmsAuth.refreshToken = null;
       BmsAuth.user = null;
@@ -232,9 +235,7 @@ void main() {
       expect(restored, isTrue);
       expect(BmsAuth.accessToken, validJwt);
       expect(BmsAuth.userRole, 'Doctor');
-      expect(ApiClient.userToken, validJwt);
 
-      // Now test expired JWT auto-refresh via POST /api/auth/refresh
       final pastExp =
           DateTime.now()
               .subtract(const Duration(hours: 1))

@@ -4,16 +4,19 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/bms_ui_kit.dart';
 import '../data/appointment_repository.dart';
 import '../domain/appointment_confirmation_model.dart';
+import '../../patient_portal/presentation/screens/sepay_checkout_screen.dart';
 
-/// Appointment Confirmation & Instant QR Check-in Pass Screen (`GET /api/appointments/{id}/confirmation`).
+/// 1-to-1 Appointment Confirmation & Check-in QR Screen matching Web `AppointmentConfirmationPage.jsx`:
+/// - Calls `GET /api/appointments/{id}/confirmation`
+/// - Unlocks QR Check-in ONLY when appointment is paid/confirmed (`isQrUnlocked`)
+/// - When Pending/Unpaid: guides patient directly into `SePayCheckoutScreen`
+/// - Zero Receptionist-only `/notify` 403 call, zero SMS UI.
 class AppointmentConfirmationScreen extends StatefulWidget {
-  final String appointmentCode;
-  final AppointmentRepository? repository;
+  final String appointmentIdOrCode;
 
   const AppointmentConfirmationScreen({
     super.key,
-    required this.appointmentCode,
-    this.repository,
+    required this.appointmentIdOrCode,
   });
 
   @override
@@ -23,58 +26,38 @@ class AppointmentConfirmationScreen extends StatefulWidget {
 
 class _AppointmentConfirmationScreenState
     extends State<AppointmentConfirmationScreen> {
-  late final AppointmentRepository _repo;
+  final AppointmentRepository _repo = AppointmentRepository();
+
+  bool _loading = true;
+  String? _error;
   AppointmentConfirmationModel? _data;
-  bool _isLoading = true;
-  bool _isResending = false;
-  String? _bannerMessage;
 
   @override
   void initState() {
     super.initState();
-    _repo = widget.repository ?? AppointmentRepository();
-    _loadConfirmation();
+    _load();
   }
 
-  Future<void> _loadConfirmation() async {
-    setState(() => _isLoading = true);
+  Future<void> _load() async {
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
     try {
-      final res = await _repo.getAppointmentConfirmation(
-        widget.appointmentCode,
+      final raw = await _repo.getAppointmentConfirmation(
+        widget.appointmentIdOrCode,
       );
       if (!mounted) return;
       setState(() {
-        _data = AppointmentConfirmationModel.fromJson(res);
-        _isLoading = false;
+        _data = AppointmentConfirmationModel.fromJson(raw);
+        _loading = false;
       });
-    } catch (_) {
+    } catch (e) {
       if (!mounted) return;
       setState(() {
-        _data = null;
-        _isLoading = false;
+        _error = e.toString();
+        _loading = false;
       });
-    }
-  }
-
-  Future<void> _handleResendEmail() async {
-    setState(() => _isResending = true);
-    try {
-      await _repo.sendNotification(
-        _data?.appointmentId ?? widget.appointmentCode,
-        channel: 1,
-        type: 1,
-      );
-      if (!mounted) return;
-      setState(() {
-        _bannerMessage = 'Đã gửi lại phiếu xác nhận lịch hẹn qua Email.';
-      });
-    } catch (_) {
-      if (!mounted) return;
-      setState(() {
-        _bannerMessage = 'Không thể gửi lại email xác nhận lúc này.';
-      });
-    } finally {
-      if (mounted) setState(() => _isResending = false);
     }
   }
 
@@ -82,166 +65,248 @@ class _AppointmentConfirmationScreenState
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: AppBar(title: const Text('Phiếu xác nhận & Mã QR')),
-      body: _isLoading
-          ? const BmsLoadingState(message: 'Đang tải thông tin phiếu hẹn...')
-          : _data == null
-              ? Padding(
-                  padding: const EdgeInsets.all(20),
-                  child: BmsErrorState(
-                    message:
-                        'Không tìm thấy thông tin xác nhận cho mã ${widget.appointmentCode}.',
-                    onRetry: _loadConfirmation,
-                  ),
-                )
-              : ListView(
-                  padding: const EdgeInsets.all(18),
+      appBar: AppBar(title: const Text('Phiếu xác nhận lịch hẹn')),
+      body: SafeArea(
+        child: _loading
+            ? const BmsLoadingState(message: 'Đang tải phiếu xác nhận...')
+            : _error != null
+            ? Padding(
+                padding: const EdgeInsets.all(18),
+                child: BmsErrorState(message: _error!, onRetry: _load),
+              )
+            : _buildBody(),
+      ),
+    );
+  }
+
+  Widget _buildBody() {
+    final d = _data!;
+    return RefreshIndicator(
+      onRefresh: _load,
+      child: ListView(
+        padding: const EdgeInsets.all(16),
+        children: [
+          BmsSoftCard(
+            padding: const EdgeInsets.all(18),
+            child: Column(
+              children: [
+                Row(
                   children: [
-                    if (_bannerMessage != null) ...[
-                      BmsSoftCard(
-                        backgroundColor: AppColors.primaryLight,
-                        padding: const EdgeInsets.all(12),
-                        child: Text(
-                          _bannerMessage!,
-                          style: const TextStyle(
-                            fontSize: 12.5,
-                            fontWeight: FontWeight.w600,
-                            color: AppColors.primaryDark,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                    ],
-                    BmsSoftCard(
-                      padding: const EdgeInsets.all(20),
+                    Expanded(
                       child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              const Text(
-                                'THẺ CHECK-IN ĐIỆN TỬ',
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w800,
-                                  color: AppColors.primary,
-                                  letterSpacing: 0.6,
-                                ),
-                              ),
-                              BmsStatusPill(status: _data!.status),
-                            ],
-                          ),
-                          const SizedBox(height: 16),
-                          Container(
-                            padding: const EdgeInsets.all(12),
-                            decoration: BoxDecoration(
-                              color: Colors.white,
-                              borderRadius: BorderRadius.circular(16),
-                              border: Border.all(color: AppColors.cardBorder),
-                            ),
-                            child: QrImageView(
-                              data: _data!.qrCodeData.isNotEmpty
-                                  ? _data!.qrCodeData
-                                  : _data!.appointmentCode,
-                              size: 190,
+                          const Text(
+                            'MÃ LỊCH HẸN',
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.textSecondary,
+                              letterSpacing: 0.5,
                             ),
                           ),
-                          const SizedBox(height: 10),
+                          const SizedBox(height: 2),
                           Text(
-                            _data!.appointmentCode,
+                            d.appointmentCode.isNotEmpty
+                                ? d.appointmentCode
+                                : d.appointmentId,
                             style: const TextStyle(
-                              fontSize: 16,
-                              fontFamily: 'monospace',
+                              fontSize: 18,
                               fontWeight: FontWeight.w800,
-                              color: AppColors.textPrimary,
+                              fontFamily: 'monospace',
+                              color: AppColors.primary,
                             ),
-                          ),
-                          const Divider(height: 24),
-                          BmsInfoRow(
-                            label: 'Bệnh nhân',
-                            value: _data!.patientName,
-                            isBold: true,
-                          ),
-                          BmsInfoRow(
-                            label: 'Gói xét nghiệm',
-                            value: _data!.packageName,
-                          ),
-                          if (_data!.doctorName != null &&
-                              _data!.doctorName!.isNotEmpty)
-                            BmsInfoRow(
-                              label: 'Bác sĩ khám',
-                              value: _data!.doctorName!,
-                            ),
-                          BmsInfoRow(
-                            label: 'Thời gian hẹn',
-                            value:
-                                '${_data!.dateFormatted} · ${_data!.timeFormatted}',
-                          ),
-                          BmsInfoRow(
-                            label: 'Địa điểm',
-                            value: _data!.location,
-                          ),
-                          BmsInfoRow(
-                            label: 'Chi phí dự kiến',
-                            value: BmsFormatters.currency(_data!.price),
                           ),
                         ],
                       ),
                     ),
-                    if (_data!.fastingInstructions.isNotEmpty) ...[
-                      const SizedBox(height: 12),
-                      BmsSoftCard(
-                        backgroundColor: AppColors.warningLight,
-                        borderColor: AppColors.warningBorder,
-                        padding: const EdgeInsets.all(14),
-                        child: Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+                    BmsStatusPill(status: d.status),
+                  ],
+                ),
+                const Divider(height: 24),
+                if (d.isQrUnlocked) ...[
+                  Container(
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: AppColors.cardBorder),
+                    ),
+                    child: QrImageView(
+                      data: d.qrCodeData.isNotEmpty
+                          ? d.qrCodeData
+                          : d.appointmentCode,
+                      size: 200,
+                      backgroundColor: Colors.white,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  const Text(
+                    'Đưa mã QR này tại Quầy Lễ tân để Check-in và lấy số thứ tự tự động',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.successText,
+                    ),
+                  ),
+                ] else ...[
+                  Container(
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: AppColors.warningLight,
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(color: AppColors.warningBorder),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        const Row(
                           children: [
-                            const Icon(
-                              Icons.info_outline_rounded,
+                            Icon(
+                              Icons.lock_clock_outlined,
                               color: AppColors.warningText,
                               size: 20,
                             ),
-                            const SizedBox(width: 10),
+                            SizedBox(width: 8),
                             Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  const Text(
-                                    'Hướng dẫn chuẩn bị trước lấy mẫu',
-                                    style: TextStyle(
-                                      fontSize: 13,
-                                      fontWeight: FontWeight.w800,
-                                      color: AppColors.warningText,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 4),
-                                  Text(
-                                    _data!.fastingInstructions,
-                                    style: const TextStyle(
-                                      fontSize: 12.5,
-                                      color: AppColors.warningText,
-                                    ),
-                                  ),
-                                ],
+                              child: Text(
+                                'Mã QR Check-in sẽ mở ngay sau khi thanh toán',
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w800,
+                                  color: AppColors.warningText,
+                                ),
                               ),
                             ),
                           ],
                         ),
-                      ),
-                    ],
-                    const SizedBox(height: 14),
-                    OutlinedButton.icon(
-                      onPressed: _isResending ? null : _handleResendEmail,
-                      icon: const Icon(Icons.mark_email_read_outlined, size: 18),
-                      label: Text(
-                        _isResending
-                            ? 'Đang gửi email...'
-                            : 'Gửi lại phiếu hẹn qua Email',
-                      ),
+                        const SizedBox(height: 6),
+                        const Text(
+                          'Lịch hẹn đang được giữ chỗ trong 15 phút. Hoàn tất chuyển khoản VietQR SePay để xác nhận chính thức.',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: AppColors.warningText,
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        FilledButton.icon(
+                          onPressed: () async {
+                            final paid = await Navigator.of(context).push<bool>(
+                              MaterialPageRoute(
+                                builder: (_) => SePayCheckoutScreen(
+                                  appointmentId: d.appointmentId,
+                                  appointmentCode: d.appointmentCode,
+                                  packageName: d.packageName,
+                                ),
+                              ),
+                            );
+                            if (paid == true && mounted) {
+                              _load();
+                            }
+                          },
+                          icon: const Icon(Icons.qr_code_scanner_rounded),
+                          label: const Text('Thanh toán VietQR SePay ngay'),
+                        ),
+                      ],
                     ),
-                  ],
+                  ),
+                ],
+              ],
+            ),
+          ),
+          const SizedBox(height: 12),
+          BmsSoftCard(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Chi tiết lịch hẹn',
+                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800),
                 ),
+                const SizedBox(height: 8),
+                BmsInfoRow(label: 'Bệnh nhân', value: d.patientName),
+                BmsInfoRow(label: 'Gói xét nghiệm', value: d.packageName),
+                if (d.price > 0)
+                  BmsInfoRow(
+                    label: 'Chi phí dịch vụ',
+                    value: BmsFormatters.currency(d.price),
+                    isBold: true,
+                    valueColor: AppColors.primary,
+                  ),
+                BmsInfoRow(
+                  label: 'Ngày khám',
+                  value: d.dateFormatted,
+                  isBold: true,
+                ),
+                BmsInfoRow(
+                  label: 'Khung giờ',
+                  value: d.timeFormatted,
+                  isBold: true,
+                ),
+                if (d.doctorName != null && d.doctorName!.isNotEmpty)
+                  BmsInfoRow(label: 'Bác sĩ phụ trách', value: d.doctorName!),
+                if (d.location.isNotEmpty)
+                  BmsInfoRow(label: 'Địa điểm', value: d.location),
+                BmsInfoRow(
+                  label: 'Thanh toán',
+                  value: d.paymentStatus.toLowerCase() == 'paid'
+                      ? 'Đã thanh toán'
+                      : 'Chờ thanh toán',
+                  valueColor: d.paymentStatus.toLowerCase() == 'paid'
+                      ? AppColors.successText
+                      : AppColors.warningText,
+                ),
+              ],
+            ),
+          ),
+          if (d.fastingInstructions.trim().isNotEmpty) ...[
+            const SizedBox(height: 12),
+            BmsSoftCard(
+              backgroundColor: AppColors.warningLight,
+              borderColor: AppColors.warningBorder,
+              padding: const EdgeInsets.all(14),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Icon(
+                    Icons.info_outline_rounded,
+                    color: AppColors.warningText,
+                    size: 20,
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Hướng dẫn chuẩn bị trước khi lấy mẫu',
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w800,
+                            color: AppColors.warningText,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          d.fastingInstructions,
+                          style: const TextStyle(
+                            fontSize: 12.5,
+                            color: AppColors.warningText,
+                            height: 1.4,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+          const SizedBox(height: 20),
+        ],
+      ),
     );
   }
 }

@@ -42,11 +42,12 @@ class BmsFormatters {
     if (str.isEmpty) return null;
     final parsed = DateTime.tryParse(str);
     if (parsed != null) return parsed.toLocal();
-    try {
-      return DateFormat('dd/MM/yyyy').parseStrict(str);
-    } catch (_) {
-      return null;
+    for (final fmt in const ['dd/MM/yyyy HH:mm', 'dd/MM/yyyy']) {
+      try {
+        return DateFormat(fmt).parseStrict(str);
+      } catch (_) {}
     }
+    return null;
   }
 
   static String genderVi(String? raw) {
@@ -132,28 +133,25 @@ class BmsSoftCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final content = Container(
-      margin: margin,
-      decoration: BoxDecoration(
-        color: backgroundColor ?? AppColors.surface,
+    final card = Material(
+      color: backgroundColor ?? AppColors.surface,
+      shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(borderRadius),
-        border: Border.all(
-          color: borderColor ?? AppColors.cardBorder,
-          width: 1,
-        ),
+        side: BorderSide(color: borderColor ?? AppColors.cardBorder, width: 1),
       ),
+      clipBehavior: Clip.antiAlias,
       child: onTap != null
-          ? Material(
-              color: Colors.transparent,
-              child: InkWell(
-                borderRadius: BorderRadius.circular(borderRadius),
-                onTap: onTap,
-                child: Padding(padding: padding, child: child),
-              ),
+          ? InkWell(
+              borderRadius: BorderRadius.circular(borderRadius),
+              onTap: onTap,
+              child: Padding(padding: padding, child: child),
             )
           : Padding(padding: padding, child: child),
     );
-    return content;
+    if (margin != null) {
+      return Padding(padding: margin!, child: card);
+    }
+    return card;
   }
 }
 

@@ -1,14 +1,13 @@
 import 'package:flutter/material.dart';
-import '../../../../core/network/bms_http_client.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/bms_ui_kit.dart';
 import '../../../../services/bms_auth.dart';
-import '../../../patient/data/test_history_repository.dart';
 import '../../../patient/presentation/screens/export_test_result_screen.dart';
-import '../../../patient/presentation/screens/test_history_screen.dart';
 import '../../data/patient_portal_api.dart';
 
-/// Tab 3 of PatientShellScreen — Clinical Test Results & 6-Stage Specimen Tracking Hub.
+/// Clean Flat 2-Segment Patient Results & Sample Tracking Hub (ZERO nested AppBars!):
+/// - Segment 0: Tiến trình 6 bước mẫu máu (`GET /api/tracking/patient/{pid}` + quick barcode lookup)
+/// - Segment 1: Lịch sử & Phiếu KQ PDF A4 (`GET /api/v1/test-history` + `/api/test-results/patient/{pid}`)
 class PatientResultsHubTab extends StatefulWidget {
   final int initialSegment;
 
@@ -20,441 +19,433 @@ class PatientResultsHubTab extends StatefulWidget {
 
 class _PatientResultsHubTabState extends State<PatientResultsHubTab> {
   final PatientPortalApi _api = const PatientPortalApi();
-  final TextEditingController _barcodeSearchCtrl = TextEditingController();
+  final TextEditingController _codeCtrl = TextEditingController();
 
   late int _segment = widget.initialSegment;
-  List<Map<String, dynamic>> _releasedReports = [];
+  bool _loading = true;
+  String? _error;
+
   List<Map<String, dynamic>> _trackings = [];
-  Map<String, dynamic>? _searchedTracking;
-  bool _loadingTracking = true;
-  String? _trackingError;
+  List<Map<String, dynamic>> _history = [];
 
   @override
   void initState() {
     super.initState();
-    _loadData();
+    _load();
   }
 
   @override
   void didUpdateWidget(covariant PatientResultsHubTab oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.initialSegment != widget.initialSegment) {
+    if (widget.initialSegment != oldWidget.initialSegment) {
       setState(() => _segment = widget.initialSegment);
     }
   }
 
   @override
   void dispose() {
-    _barcodeSearchCtrl.dispose();
+    _codeCtrl.dispose();
     super.dispose();
   }
 
-  Future<void> _loadData() async {
+  Future<void> _load() async {
     setState(() {
-      _loadingTracking = true;
-      _trackingError = null;
+      _loading = true;
+      _error = null;
     });
     try {
-      final med = await _api.getMedicalProfile();
-      final patId = (med?['id'] ?? BmsAuth.currentUserId).toString();
-      final results = await Future.wait<dynamic>([
-        _api.getReleasedResults(patId),
-        _api.getPatientTrackings(patId),
+      final profile = await _api.getMedicalProfile().catchError((_) => null);
+      final pid =
+          (profile?['patientCode'] ?? profile?['id'] ?? BmsAuth.currentUserId)
+              .toString();
+      final results = await Future.wait([
+        _api.getPatientTrackings(pid),
+        _api.getTestHistory(patientId: pid, pageSize: 30),
+        _api.getReleasedResults(pid),
       ]);
       if (!mounted) return;
+
+      final hist = results[1];
+      final released = results[2];
+
+      // Merge history + released results cleanly without duplicates
+      final seen = <String>{};
+      final mergedHistory = <Map<String, dynamic>>[];
+      for (final item in [...hist, ...released]) {
+        final key =
+            (item['resultCode'] ??
+                    item['orderId'] ??
+                    item['OrderId'] ??
+                    item['id'] ??
+                    '')
+                .toString()
+                .trim();
+        if (key.isEmpty || seen.add(key.toLowerCase())) {
+          mergedHistory.add(item);
+        }
+      }
+
       setState(() {
-        _releasedReports = results[0] as List<Map<String, dynamic>>;
-        _trackings = results[1] as List<Map<String, dynamic>>;
-        _loadingTracking = false;
+        _trackings = results[0];
+        _history = mergedHistory;
+        _loading = false;
       });
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _trackingError = e.toString();
-        _loadingTracking = false;
+        _error = e.toString();
+        _loading = false;
       });
     }
   }
 
-  Future<void> _lookupSingleTracking() async {
-    final code = _barcodeSearchCtrl.text.trim();
-    if (code.isEmpty) {
-      setState(() {
-        _searchedTracking = null;
-        _trackingError = null;
-      });
-      return;
-    }
-    setState(() {
-      _loadingTracking = true;
-      _trackingError = null;
-    });
+  Future<void> _lookupManualBarcode() async {
+    final code = _codeCtrl.text.trim();
+    if (code.isEmpty) return;
+    FocusScope.of(context).unfocus();
     try {
-      final found = await _api.lookupTrackingByCode(code);
+      final data = await _api.lookupTrackingByCode(code);
       if (!mounted) return;
-      setState(() {
-        _searchedTracking = found;
-        _loadingTracking = false;
-      });
+      _showTrackingDetailModal(data);
     } catch (e) {
       if (!mounted) return;
-      setState(() {
-        _searchedTracking = null;
-        _trackingError = e.toString();
-        _loadingTracking = false;
-      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.toString()), backgroundColor: AppColors.danger),
+      );
     }
+  }
+
+  void _showTrackingDetailModal(Map<String, dynamic> tr) {
+    final stages = (tr['stages'] ?? tr['timeline'] ?? const []) as List<dynamic>;
+    final orderId = (tr['orderId'] ?? tr['orderNumber'] ?? tr['id'] ?? '').toString();
+    final overall = (tr['overallStatus'] ?? tr['status'] ?? '').toString();
+    final completed = overall.toLowerCase() == 'completed' ||
+        overall.toLowerCase() == 'released';
+
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      builder: (_) => Padding(
+        padding: const EdgeInsets.all(20),
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      orderId,
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w800,
+                        fontFamily: 'monospace',
+                        color: AppColors.primary,
+                      ),
+                    ),
+                  ),
+                  BmsStatusPill(status: overall),
+                ],
+              ),
+              const Divider(height: 22),
+              ...stages.whereType<Map>().map((raw) {
+                final s = Map<String, dynamic>.from(raw);
+                final st = (s['status'] ?? '').toString().toLowerCase();
+                final done = st == 'completed' || st == 'done' || s['isCompleted'] == true;
+                final active = st == 'inprogress' || st == 'active';
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 12),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Icon(
+                        done
+                            ? Icons.check_circle_rounded
+                            : active
+                            ? Icons.timelapse_rounded
+                            : Icons.radio_button_unchecked_rounded,
+                        size: 20,
+                        color: done
+                            ? AppColors.success
+                            : active
+                            ? AppColors.primary
+                            : AppColors.textTertiary,
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              (s['stageName'] ?? s['title'] ?? s['name'] ?? 'Giai đoạn')
+                                  .toString(),
+                              style: TextStyle(
+                                fontSize: 13.5,
+                                fontWeight:
+                                    done || active ? FontWeight.w700 : FontWeight.w500,
+                              ),
+                            ),
+                            if ((s['completedAt'] ?? s['timestamp']) != null)
+                              Text(
+                                BmsFormatters.dateTime(
+                                  s['completedAt'] ?? s['timestamp'],
+                                ),
+                                style: const TextStyle(
+                                  fontSize: 11.5,
+                                  color: AppColors.textSecondary,
+                                ),
+                              ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              }),
+              if (completed && orderId.isNotEmpty) ...[
+                const SizedBox(height: 8),
+                FilledButton.icon(
+                  onPressed: () {
+                    Navigator.of(context).pop();
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => ExportTestResultScreen(orderId: orderId),
+                      ),
+                    );
+                  },
+                  icon: const Icon(Icons.picture_as_pdf_rounded),
+                  label: const Text('Mở Phiếu Kết Quả & Xuất PDF A4'),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      body: Column(
+    return RefreshIndicator(
+      onRefresh: _load,
+      child: ListView(
+        padding: const EdgeInsets.all(16),
         children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 14, 16, 10),
-            child: Column(
-              children: [
-                BmsSegmentedTabs(
-                  tabs: const ['Kết quả xét nghiệm', 'Hành trình mẫu máu'],
-                  selectedIndex: _segment,
-                  onChanged: (idx) => setState(() => _segment = idx),
-                ),
-              ],
-            ),
+          const BmsPageHeaderCard(
+            icon: Icons.biotech_rounded,
+            badgeText: 'KẾT QUẢ & TIẾN TRÌNH MẪU',
+            title: 'Theo dõi & Phiếu Kết Quả',
+            subtitle:
+                'Xem tiến trình xử lý mẫu 6 bước và xuất phiếu kết quả PDF khổ A4 chuẩn y khoa',
           ),
-          Expanded(
-            child: _segment == 0
-                ? _buildResultsSegment()
-                : _buildSampleTrackingSegment(),
+          const SizedBox(height: 12),
+          BmsSegmentedTabs(
+            tabs: [
+              'Tiến trình mẫu (${_trackings.length})',
+              'Lịch sử & PDF (${_history.length})',
+            ],
+            selectedIndex: _segment,
+            onChanged: (idx) => setState(() => _segment = idx),
           ),
+          const SizedBox(height: 14),
+          if (_loading)
+            const BmsLoadingState(message: 'Đang tải dữ liệu xét nghiệm...')
+          else if (_error != null)
+            BmsErrorState(message: _error!, onRetry: _load)
+          else if (_segment == 0)
+            _buildTrackingList()
+          else
+            _buildHistoryList(),
+          const SizedBox(height: 24),
         ],
       ),
     );
   }
 
-  Widget _buildResultsSegment() {
+  Widget _buildTrackingList() {
     return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        if (_releasedReports.isNotEmpty)
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-            child: BmsSoftCard(
+        BmsSoftCard(
+          padding: const EdgeInsets.all(12),
+          child: Row(
+            children: [
+              Expanded(
+                child: TextField(
+                  controller: _codeCtrl,
+                  onSubmitted: (_) => _lookupManualBarcode(),
+                  decoration: const InputDecoration(
+                    hintText: 'Tra nhanh mã Barcode / Mã đơn...',
+                    prefixIcon: Icon(Icons.qr_code_rounded, size: 19),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              FilledButton(
+                onPressed: _lookupManualBarcode,
+                child: const Text('Tra'),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 12),
+        if (_trackings.isEmpty)
+          const BmsEmptyState(
+            icon: Icons.track_changes_rounded,
+            title: 'Chưa có mẫu đang theo dõi',
+            subtitle:
+                'Khi lễ tân check-in và dán barcode mẫu máu, tiến trình 6 bước sẽ hiện trực tiếp tại đây.',
+          )
+        else
+          ..._trackings.map((tr) {
+            final code =
+                (tr['orderNumber'] ?? tr['orderId'] ?? tr['barcode'] ?? 'Mẫu XN')
+                    .toString();
+            final pkg = (tr['packageName'] ?? tr['testName'] ?? 'Xét nghiệm')
+                .toString();
+            final overall = (tr['overallStatus'] ?? tr['status'] ?? 'InProgress')
+                .toString();
+            return BmsSoftCard(
+              margin: const EdgeInsets.only(bottom: 10),
               padding: const EdgeInsets.all(14),
-              backgroundColor: AppColors.primaryLight,
-              borderColor: AppColors.primaryBorder,
+              onTap: () => _showTrackingDetailModal(tr),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
-                    'Phiếu kết quả xuất PDF & Chia sẻ bác sĩ',
-                    style: TextStyle(
-                      fontSize: 13.5,
-                      fontWeight: FontWeight.w800,
-                      color: AppColors.primaryDark,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  SizedBox(
-                    height: 38,
-                    child: ListView.separated(
-                      scrollDirection: Axis.horizontal,
-                      itemCount: _releasedReports.length,
-                      separatorBuilder: (_, _) => const SizedBox(width: 8),
-                      itemBuilder: (context, idx) {
-                        final r = _releasedReports[idx];
-                        final orderId =
-                            (r['orderId'] ?? r['orderCode'] ?? r['id'] ?? '')
-                                .toString();
-                        final pkg =
-                            (r['packageName'] ?? orderId).toString();
-                        return ActionChip(
-                          avatar: const Icon(
-                            Icons.picture_as_pdf_outlined,
-                            size: 16,
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          code,
+                          style: const TextStyle(
+                            fontSize: 13.5,
+                            fontWeight: FontWeight.w800,
+                            fontFamily: 'monospace',
                             color: AppColors.primary,
                           ),
-                          label: Text(pkg),
-                          onPressed: orderId.isEmpty
-                              ? null
-                              : () {
-                                  Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                      builder: (_) => ExportTestResultScreen(
-                                        orderId: orderId,
-                                      ),
-                                    ),
-                                  );
-                                },
-                        );
-                      },
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        Expanded(
-          child: TestHistoryScreen(
-            repository: TestHistoryRepository(
-              baseUrl: '${BmsHttpClient.resolvedBaseUrl}/api',
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildSampleTrackingSegment() {
-    final displayList = _searchedTracking != null
-        ? [_searchedTracking!]
-        : _trackings;
-
-    return RefreshIndicator(
-      onRefresh: _loadData,
-      child: ListView(
-        padding: const EdgeInsets.fromLTRB(16, 4, 16, 28),
-        children: [
-          BmsSearchFilterBar(
-            controller: _barcodeSearchCtrl,
-            hintText: 'Nhập mã Barcode mẫu (SMP-...) hoặc mã phiếu (ORD-...)',
-            onSubmitted: (_) => _lookupSingleTracking(),
-            onClear: () {
-              setState(() {
-                _searchedTracking = null;
-                _trackingError = null;
-              });
-            },
-            trailing: FilledButton(
-              onPressed: _lookupSingleTracking,
-              child: const Text('Tra cứu'),
-            ),
-          ),
-          const SizedBox(height: 14),
-          if (_loadingTracking)
-            const BmsLoadingState(
-              message: 'Đang truy xuất hành trình mẫu bệnh phẩm...',
-            )
-          else if (_trackingError != null)
-            BmsErrorState(
-              message: _trackingError!,
-              onRetry: _searchedTracking != null
-                  ? _lookupSingleTracking
-                  : _loadData,
-            )
-          else if (displayList.isEmpty)
-            const BmsEmptyState(
-              icon: Icons.science_outlined,
-              title: 'Chưa có mẫu bệnh phẩm đang theo dõi',
-              subtitle:
-                  'Bạn có thể nhập mã Barcode trên biên nhận lấy mẫu để tra cứu trực tiếp tiến độ 6 bước.',
-            )
-          else
-            ...displayList.map(
-              (item) => Padding(
-                padding: const EdgeInsets.only(bottom: 14),
-                child: _SampleTimelineCard(tracking: item),
-              ),
-            ),
-        ],
-      ),
-    );
-  }
-}
-
-class _SampleTimelineCard extends StatelessWidget {
-  final Map<String, dynamic> tracking;
-
-  const _SampleTimelineCard({required this.tracking});
-
-  @override
-  Widget build(BuildContext context) {
-    final orderNumber = (tracking['orderNumber'] ?? '').toString();
-    final barcode = (tracking['barcode'] ?? '').toString();
-    final priority = (tracking['priority'] ?? 'Routine').toString();
-    final currentStep =
-        ((tracking['currentStepNumber'] as num?)?.toInt() ?? 1).clamp(1, 6);
-    final elapsed = (tracking['elapsedMinutes'] as num?)?.round() ?? 0;
-    final eta = BmsFormatters.dateTime(tracking['estimatedCompletionTime']);
-    final packages = tracking['testPackageNames'] is List
-        ? (tracking['testPackageNames'] as List).join(', ')
-        : 'Xét nghiệm lâm sàng';
-    final rawSteps = tracking['steps'] is List
-        ? (tracking['steps'] as List)
-              .whereType<Map>()
-              .map((e) => Map<String, dynamic>.from(e))
-              .toList()
-        : <Map<String, dynamic>>[];
-
-    return BmsSoftCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Expanded(
-                child: Text(
-                  barcode.isNotEmpty ? 'Mẫu: $barcode' : 'Mã đơn: $orderNumber',
-                  style: const TextStyle(
-                    fontFamily: 'monospace',
-                    fontSize: 13,
-                    fontWeight: FontWeight.w800,
-                    color: AppColors.primary,
-                  ),
-                ),
-              ),
-              BmsStatusPill(status: priority),
-            ],
-          ),
-          const SizedBox(height: 6),
-          Text(
-            packages,
-            style: const TextStyle(
-              fontSize: 15,
-              fontWeight: FontWeight.w800,
-              color: AppColors.textPrimary,
-            ),
-          ),
-          const SizedBox(height: 6),
-          Text(
-            'Thời gian xử lý (TAT): $elapsed phút · Dự kiến hoàn tất: $eta',
-            style: const TextStyle(
-              fontSize: 12,
-              color: AppColors.textSecondary,
-            ),
-          ),
-          const SizedBox(height: 14),
-          const Divider(),
-          const SizedBox(height: 12),
-          ...rawSteps.asMap().entries.map((entry) {
-            final idx = entry.key;
-            final step = entry.value;
-            final stepNum = (step['stepNumber'] as num?)?.toInt() ?? (idx + 1);
-            final title = (step['title'] ?? 'Công đoạn $stepNum').toString();
-            final desc = (step['description'] ?? '').toString();
-            final statusRaw = (step['status'] ?? '').toString().toLowerCase();
-            final handler = (step['handlerName'] ?? '').toString();
-            final dept = (step['department'] ?? '').toString();
-            final ts = step['timestamp'];
-
-            final isDone =
-                statusRaw == 'completed' ||
-                statusRaw == '2' ||
-                stepNum < currentStep;
-            final isCurrent =
-                statusRaw == 'inprogress' ||
-                statusRaw == '1' ||
-                stepNum == currentStep;
-
-            final dotColor = isDone
-                ? AppColors.success
-                : (isCurrent ? AppColors.primary : AppColors.border);
-
-            return IntrinsicHeight(
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Column(
-                    children: [
-                      Container(
-                        width: 24,
-                        height: 24,
-                        decoration: BoxDecoration(
-                          color: dotColor.withValues(alpha: 0.14),
-                          shape: BoxShape.circle,
-                          border: Border.all(color: dotColor, width: 1.5),
-                        ),
-                        child: Icon(
-                          isDone
-                              ? Icons.check_rounded
-                              : (isCurrent
-                                    ? Icons.sync_rounded
-                                    : Icons.circle_outlined),
-                          size: 13,
-                          color: dotColor,
                         ),
                       ),
-                      if (idx < rawSteps.length - 1)
-                        Expanded(
-                          child: Container(
-                            width: 2,
-                            color: isDone
-                                ? AppColors.success
-                                : AppColors.cardBorder,
-                          ),
-                        ),
+                      BmsStatusPill(status: overall),
                     ],
                   ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Padding(
-                      padding: const EdgeInsets.only(bottom: 14),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Expanded(
-                                child: Text(
-                                  '$stepNum. $title',
-                                  style: TextStyle(
-                                    fontSize: 13.5,
-                                    fontWeight: isCurrent || isDone
-                                        ? FontWeight.w700
-                                        : FontWeight.w500,
-                                    color: isCurrent || isDone
-                                        ? AppColors.textPrimary
-                                        : AppColors.textSecondary,
-                                  ),
-                                ),
-                              ),
-                              if (ts != null)
-                                Text(
-                                  BmsFormatters.time(ts),
-                                  style: const TextStyle(
-                                    fontSize: 11.5,
-                                    color: AppColors.textSecondary,
-                                  ),
-                                ),
-                            ],
-                          ),
-                          if (desc.isNotEmpty) ...[
-                            const SizedBox(height: 2),
-                            Text(
-                              desc,
-                              style: const TextStyle(
-                                fontSize: 12,
-                                color: AppColors.textSecondary,
-                              ),
-                            ),
-                          ],
-                          if (handler.isNotEmpty || dept.isNotEmpty) ...[
-                            const SizedBox(height: 3),
-                            Text(
-                              [handler, dept]
-                                  .where((s) => s.isNotEmpty)
-                                  .join(' · '),
-                              style: const TextStyle(
-                                fontSize: 11.5,
-                                fontWeight: FontWeight.w600,
-                                color: AppColors.primary,
-                              ),
-                            ),
-                          ],
-                        ],
-                      ),
+                  const SizedBox(height: 6),
+                  Text(
+                    pkg,
+                    style: const TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  const Text(
+                    'Chạm để xem chi tiết tiến trình 6 giai đoạn →',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: AppColors.textSecondary,
                     ),
                   ),
                 ],
               ),
             );
           }),
-        ],
-      ),
+      ],
+    );
+  }
+
+  Widget _buildHistoryList() {
+    if (_history.isEmpty) {
+      return const BmsEmptyState(
+        icon: Icons.description_outlined,
+        title: 'Chưa có lịch sử kết quả xét nghiệm',
+        subtitle:
+            'Các phiếu kết quả sau khi Bác sĩ ký duyệt điện tử sẽ hiển thị đầy đủ tại đây.',
+      );
+    }
+
+    return Column(
+      children: _history.map((item) {
+        final orderId =
+            (item['resultCode'] ??
+                    item['orderId'] ??
+                    item['OrderId'] ??
+                    item['id'] ??
+                    '')
+                .toString();
+        final pkgName =
+            (item['packageName'] ??
+                    item['PackageName'] ??
+                    item['testName'] ??
+                    'Phiếu Kết Quả Xét Nghiệm')
+                .toString();
+        final status =
+            (item['overallStatus'] ??
+                    item['OverallStatus'] ??
+                    item['status'] ??
+                    'Completed')
+                .toString();
+        final dateRaw =
+            item['releasedDate'] ??
+            item['ReleasedDate'] ??
+            item['orderDate'] ??
+            item['createdAt'];
+
+        return BmsSoftCard(
+          margin: const EdgeInsets.only(bottom: 12),
+          padding: const EdgeInsets.all(15),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      orderId,
+                      style: const TextStyle(
+                        fontSize: 13.5,
+                        fontWeight: FontWeight.w800,
+                        fontFamily: 'monospace',
+                        color: AppColors.primary,
+                      ),
+                    ),
+                  ),
+                  BmsStatusPill(status: status),
+                ],
+              ),
+              const SizedBox(height: 6),
+              Text(
+                pkgName,
+                style: const TextStyle(
+                  fontSize: 15.5,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+              const SizedBox(height: 6),
+              BmsInfoRow(
+                label: 'Ngày phát hành',
+                value: BmsFormatters.dateTime(dateRaw),
+              ),
+              const SizedBox(height: 10),
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton.icon(
+                  onPressed: orderId.isEmpty
+                      ? null
+                      : () => Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) =>
+                                ExportTestResultScreen(orderId: orderId),
+                          ),
+                        ),
+                  icon: const Icon(Icons.picture_as_pdf_rounded, size: 18),
+                  label: const Text('Xem Phiếu Kết Quả & Xuất PDF A4'),
+                ),
+              ),
+            ],
+          ),
+        );
+      }).toList(),
     );
   }
 }

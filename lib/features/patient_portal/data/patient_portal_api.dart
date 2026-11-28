@@ -1,7 +1,7 @@
 import '../../../core/network/bms_http_client.dart';
 import '../../../services/bms_auth.dart';
 
-/// Real-API client for Patient mobile portal endpoints.
+/// Unified Real-API client for Patient (1-1 Web) & Guest endpoints.
 class PatientPortalApi {
   final BmsHttpClient _http;
 
@@ -16,7 +16,8 @@ class PatientPortalApi {
           .toList();
     }
     if (raw is Map<String, dynamic>) {
-      final nested = raw['items'] ?? raw['Items'] ?? raw['data'];
+      final nested =
+          raw['items'] ?? raw['Items'] ?? raw['data'] ?? raw['results'];
       if (nested is List) {
         return nested
             .whereType<Map>()
@@ -88,18 +89,10 @@ class PatientPortalApi {
     }
   }
 
-  /// `GET /api/dashboard/stats`
-  Future<Map<String, dynamic>> getDashboardStats() async {
-    final res = await _http.get('/api/dashboard/stats');
-    if (!res.isSuccess) return {};
-    final data = res.data;
-    return data is Map ? Map<String, dynamic>.from(data) : res.bodyAsMap;
-  }
-
   /// `GET /api/appointments`
   Future<List<Map<String, dynamic>>> getAppointments({
     int page = 1,
-    int pageSize = 30,
+    int pageSize = 50,
     String? status,
   }) async {
     final res = await _http.get(
@@ -136,71 +129,7 @@ class PatientPortalApi {
     return data is Map ? Map<String, dynamic>.from(data) : res.bodyAsMap;
   }
 
-  /// `GET /api/appointments/doctors`
-  Future<List<Map<String, dynamic>>> getAvailableDoctors(
-    String date, {
-    String? specialty,
-  }) async {
-    final res = await _http.get(
-      '/api/appointments/doctors',
-      query: {
-        'date': date,
-        if (specialty != null && specialty.isNotEmpty) 'specialty': specialty,
-      },
-    );
-    if (!res.isSuccess) return const [];
-    return _toMapList(res.body);
-  }
-
-  /// `GET /api/appointments/slots`
-  Future<List<Map<String, dynamic>>> getAvailableSlots({
-    required String doctorId,
-    required String date,
-  }) async {
-    final res = await _http.get(
-      '/api/appointments/slots',
-      query: {'doctorId': doctorId, 'date': date},
-    );
-    if (!res.isSuccess) return const [];
-    final map = res.bodyAsMap;
-    return _toMapList(map['slots'] ?? res.data);
-  }
-
-  /// `POST /api/appointments`
-  Future<Map<String, dynamic>> bookAppointment({
-    required String patientId,
-    required String doctorId,
-    required String appointmentDate,
-    required String slotTime,
-    required List<String> packageIds,
-    String type = 'ClinicVisit',
-    String? collectionAddress,
-    String? notes,
-  }) async {
-    final res = await _http.post(
-      '/api/appointments',
-      body: {
-        'patientId': patientId,
-        'doctorId': doctorId,
-        'appointmentDate': appointmentDate,
-        'slotTime': slotTime,
-        'packageIds': packageIds,
-        'type': type,
-        if (collectionAddress != null && collectionAddress.trim().isNotEmpty)
-          'collectionAddress': collectionAddress.trim(),
-        if (notes != null && notes.trim().isNotEmpty) 'notes': notes.trim(),
-      },
-    );
-    if (!res.isSuccess) {
-      throw BmsApiException(
-        res.extractMessage('Đặt lịch hẹn thất bại.'),
-        statusCode: res.statusCode,
-      );
-    }
-    return res.bodyAsMap;
-  }
-
-  /// `PUT /api/appointments/{id}`
+  /// `PUT /api/appointments/{id}` (cancel / reschedule)
   Future<void> updateAppointment(
     String id,
     Map<String, dynamic> payload,
@@ -217,29 +146,6 @@ class PatientPortalApi {
     }
   }
 
-  /// `GET /api/v1/test-packages/search`
-  Future<List<Map<String, dynamic>>> searchTestPackages({
-    String? keyword,
-    String? category,
-    int page = 1,
-    int pageSize = 50,
-  }) async {
-    final res = await _http.get(
-      '/api/v1/test-packages/search',
-      query: {
-        'page': '$page',
-        'pageSize': '$pageSize',
-        'isActive': 'true',
-        if (keyword != null && keyword.trim().isNotEmpty)
-          'keyword': keyword.trim(),
-        if (category != null && category.trim().isNotEmpty)
-          'category': category.trim(),
-      },
-    );
-    if (!res.isSuccess) return const [];
-    return _toMapList(res.body);
-  }
-
   /// `GET /api/tracking/patient/{patientId}`
   Future<List<Map<String, dynamic>>> getPatientTrackings(
     String patientId,
@@ -252,10 +158,14 @@ class PatientPortalApi {
     return _toMapList(res.data);
   }
 
-  /// `GET /api/tracking/{identifier}`
-  Future<Map<String, dynamic>> lookupTrackingByCode(String identifier) async {
+  /// Public / Authenticated `GET /api/tracking/{identifier}` (works for Guest too!)
+  Future<Map<String, dynamic>> lookupTrackingByCode(
+    String identifier, {
+    bool includeAuth = true,
+  }) async {
     final res = await _http.get(
       '/api/tracking/${Uri.encodeComponent(identifier.trim())}',
+      includeAuth: includeAuth,
     );
     if (!res.isSuccess) {
       throw BmsApiException(
@@ -265,6 +175,28 @@ class PatientPortalApi {
     }
     final data = res.data;
     return data is Map ? Map<String, dynamic>.from(data) : res.bodyAsMap;
+  }
+
+  /// `GET /api/test-history`
+  Future<List<Map<String, dynamic>>> getTestHistory({
+    String? patientId,
+    int page = 1,
+    int pageSize = 30,
+    String? keyword,
+  }) async {
+    final res = await _http.get(
+      '/api/test-history',
+      query: {
+        'page': '$page',
+        'pageSize': '$pageSize',
+        if (patientId != null && patientId.trim().isNotEmpty)
+          'patientId': patientId.trim(),
+        if (keyword != null && keyword.trim().isNotEmpty)
+          'keyword': keyword.trim(),
+      },
+    );
+    if (!res.isSuccess) return const [];
+    return _toMapList(res.data);
   }
 
   /// `GET /api/test-results/patient/{patientId}`
@@ -279,11 +211,14 @@ class PatientPortalApi {
     return _toMapList(res.data);
   }
 
-  /// `GET /api/test-results/patient/order/{orderId}`
+  /// `GET /api/test-results/patient/order/{orderId}` (with `/api/testresults/patient/order/{orderId}` fallback)
   Future<Map<String, dynamic>> getOrderResultDetail(String orderId) async {
-    final res = await _http.get(
-      '/api/test-results/patient/order/${Uri.encodeComponent(orderId.trim())}',
-    );
+    final encoded = Uri.encodeComponent(orderId.trim());
+    var res = await _http.get('/api/test-results/patient/order/$encoded');
+    if (!res.isSuccess) {
+      final alt = await _http.get('/api/testresults/patient/order/$encoded');
+      if (alt.isSuccess) res = alt;
+    }
     if (!res.isSuccess) {
       throw BmsApiException(
         res.extractMessage('Không tìm thấy chi tiết phiếu kết quả.'),
@@ -296,9 +231,16 @@ class PatientPortalApi {
 
   /// `GET /api/test-results/patient/order/{orderId}/export-pdf`
   Future<Map<String, dynamic>> exportOrderResultPdf(String orderId) async {
-    final res = await _http.get(
-      '/api/test-results/patient/order/${Uri.encodeComponent(orderId.trim())}/export-pdf',
+    final encoded = Uri.encodeComponent(orderId.trim());
+    var res = await _http.get(
+      '/api/test-results/patient/order/$encoded/export-pdf',
     );
+    if (!res.isSuccess) {
+      final alt = await _http.get(
+        '/api/testresults/patient/order/$encoded/export-pdf',
+      );
+      if (alt.isSuccess) res = alt;
+    }
     if (!res.isSuccess) {
       throw BmsApiException(
         res.extractMessage('Không thể xuất bản PDF cho phiếu kết quả này.'),
@@ -311,9 +253,14 @@ class PatientPortalApi {
 
   /// `POST /api/test-results/patient/order/{orderId}/share`
   Future<Map<String, dynamic>> shareOrderResult(String orderId) async {
-    final res = await _http.post(
-      '/api/test-results/patient/order/${Uri.encodeComponent(orderId.trim())}/share',
-    );
+    final encoded = Uri.encodeComponent(orderId.trim());
+    var res = await _http.post('/api/test-results/patient/order/$encoded/share');
+    if (!res.isSuccess) {
+      final alt = await _http.post(
+        '/api/testresults/patient/order/$encoded/share',
+      );
+      if (alt.isSuccess) res = alt;
+    }
     if (!res.isSuccess) {
       throw BmsApiException(
         res.extractMessage('Không thể tạo liên kết chia sẻ bảo mật.'),
@@ -326,8 +273,9 @@ class PatientPortalApi {
 
   /// `GET /api/invoices`
   Future<List<Map<String, dynamic>>> getInvoices({
+    String? patientId,
     int page = 1,
-    int pageSize = 30,
+    int pageSize = 50,
     String? status,
   }) async {
     final res = await _http.get(
@@ -335,6 +283,8 @@ class PatientPortalApi {
       query: {
         'page': '$page',
         'pageSize': '$pageSize',
+        if (patientId != null && patientId.trim().isNotEmpty)
+          'patientId': patientId.trim(),
         if (status != null && status.isNotEmpty) 'status': status,
       },
     );
@@ -347,17 +297,278 @@ class PatientPortalApi {
     return _toMapList(res.data);
   }
 
-  /// `GET /api/payments/checkout/{invoiceId}`
-  Future<Map<String, dynamic>?> getCheckoutSummary(String invoiceId) async {
+  /// `GET /api/payments/patient/{patientId}` — Web fallback endpoint.
+  Future<List<Map<String, dynamic>>> getPaymentsByPatient(
+    String patientId,
+  ) async {
+    if (patientId.trim().isEmpty) return const [];
     final res = await _http.get(
-      '/api/payments/checkout/${Uri.encodeComponent(invoiceId)}',
+      '/api/payments/patient/${Uri.encodeComponent(patientId.trim())}',
     );
-    if (!res.isSuccess) return null;
-    final data = res.data;
-    return data is Map ? Map<String, dynamic>.from(data) : res.bodyAsMap;
+    if (!res.isSuccess) return const [];
+    return _toMapList(res.data);
   }
 
-  /// `GET /api/payments/sepay/checkout/{appointmentId}` — gracefully reports 503 when SePay env is unconfigured.
+  /// Unified patient billing loader (1-1 parity with Web `PatientPaymentHistoryPage.jsx`):
+  /// Resolves all candidate patient identifiers (`patient.id`, `patientCode`, `accountId`,
+  /// `appointment.patientId`) because `AppointmentService.BookAsync` keys auto-created
+  /// invoices by Mongo `patients._id` while `/api/invoices` without `patientId` defaults
+  /// to `User.AccountId()`. Also reconciles paid appointments whose invoice wasn't synced.
+  Future<List<Map<String, dynamic>>> getMyBillingInvoices({
+    int page = 1,
+    int pageSize = 50,
+  }) async {
+    final initResults = await Future.wait<dynamic>([
+      getMedicalProfile().catchError((_) => null),
+      getAppointments(page: 1, pageSize: pageSize)
+          .catchError((_) => <Map<String, dynamic>>[]),
+    ]);
+
+    final profile = initResults[0] as Map<String, dynamic>?;
+    final appointments = initResults[1] as List<Map<String, dynamic>>;
+
+    final candidateIds = <String>[];
+    void addCandidate(dynamic raw) {
+      final v = (raw ?? '').toString().trim();
+      if (v.isNotEmpty && !candidateIds.contains(v)) {
+        candidateIds.add(v);
+      }
+    }
+
+    addCandidate(profile?['id']);
+    addCandidate(profile?['patientCode']);
+    addCandidate(profile?['accountId']);
+    addCandidate(BmsAuth.user?['patientCode']);
+    addCandidate(BmsAuth.currentUserId);
+    for (final appt in appointments) {
+      addCandidate(appt['patientId']);
+    }
+
+    final merged = <String, Map<String, dynamic>>{};
+    BmsApiException? lastError;
+    var anySuccess = false;
+
+    void absorb(List<Map<String, dynamic>> items) {
+      for (final raw in items) {
+        final item = Map<String, dynamic>.from(raw);
+        final key =
+            (item['id'] ??
+                    item['invoiceId'] ??
+                    item['invoiceCode'] ??
+                    item['appointmentId'] ??
+                    '')
+                .toString()
+                .trim();
+        if (key.isEmpty) continue;
+        final existing = merged[key];
+        if (existing == null) {
+          merged[key] = item;
+        } else {
+          // Prefer whichever record is Paid or has richer fields
+          final existingStatus =
+              (existing['status'] ?? '').toString().toLowerCase();
+          final newStatus = (item['status'] ?? '').toString().toLowerCase();
+          if ((newStatus == 'paid' || newStatus == '1') &&
+              existingStatus != 'paid' &&
+              existingStatus != '1') {
+            merged[key] = item;
+          }
+        }
+      }
+    }
+
+    if (candidateIds.isEmpty) {
+      try {
+        absorb(await getInvoices(page: page, pageSize: pageSize));
+        anySuccess = true;
+      } on BmsApiException catch (e) {
+        lastError = e;
+      }
+    } else {
+      await Future.wait(
+        candidateIds.map((pid) async {
+          try {
+            final list = await getInvoices(
+              patientId: pid,
+              page: page,
+              pageSize: pageSize,
+            );
+            anySuccess = true;
+            if (list.isNotEmpty) {
+              absorb(list);
+              return;
+            }
+          } on BmsApiException catch (e) {
+            lastError = e;
+          } catch (_) {}
+
+          try {
+            final fallback = await getPaymentsByPatient(pid);
+            if (fallback.isNotEmpty) {
+              anySuccess = true;
+              absorb(fallback);
+            }
+          } catch (_) {}
+        }),
+      );
+    }
+
+    if (!anySuccess && merged.isEmpty && lastError != null) {
+      throw lastError!;
+    }
+
+    // Build appointment lookup to enrich & reconcile paid SePay bookings
+    final apptById = <String, Map<String, dynamic>>{};
+    final apptByCode = <String, Map<String, dynamic>>{};
+    for (final a in appointments) {
+      final aid = (a['appointmentId'] ?? a['id'] ?? '').toString().trim();
+      final acode = (a['appointmentCode'] ?? '').toString().trim();
+      if (aid.isNotEmpty) apptById[aid] = a;
+      if (acode.isNotEmpty) apptByCode[acode] = a;
+    }
+
+    final matchedApptKeys = <String>{};
+    for (final inv in merged.values) {
+      final invApptId = (inv['appointmentId'] ?? '').toString().trim();
+      final invApptCode = (inv['appointmentCode'] ?? '').toString().trim();
+      final appt = apptById[invApptId] ??
+          apptByCode[invApptCode] ??
+          apptByCode[invApptId] ??
+          apptById[invApptCode];
+      if (appt == null) continue;
+
+      final aid =
+          (appt['appointmentId'] ?? appt['id'] ?? invApptId).toString().trim();
+      final acode =
+          (appt['appointmentCode'] ?? invApptCode).toString().trim();
+      if (aid.isNotEmpty) matchedApptKeys.add(aid);
+      if (acode.isNotEmpty) matchedApptKeys.add(acode);
+
+      if ((inv['appointmentCode'] ?? '').toString().trim().isEmpty &&
+          acode.isNotEmpty) {
+        inv['appointmentCode'] = acode;
+      }
+      if ((inv['packageName'] ?? '').toString().trim().isEmpty) {
+        final pkg =
+            (appt['packageName'] ?? appt['testPackageName'] ?? '').toString();
+        if (pkg.isNotEmpty) inv['packageName'] = pkg;
+      }
+
+      final st = (inv['status'] ?? inv['paymentStatus'] ?? '')
+          .toString()
+          .toLowerCase();
+      final isInvPaid =
+          st == 'paid' || st == '1' || st == 'completed' || inv['paidAt'] != null;
+      final apptSt = (appt['status'] ?? '').toString().toLowerCase();
+      final apptPay = (appt['paymentStatus'] ?? '').toString().toLowerCase();
+      final apptLooksPaid =
+          apptPay == 'paid' ||
+          appt['paidAt'] != null ||
+          apptSt == 'confirmed' ||
+          apptSt == 'checkedin' ||
+          apptSt == 'inprogress' ||
+          apptSt == 'completed';
+
+      if (!isInvPaid && apptLooksPaid && aid.isNotEmpty) {
+        final sepay = await getSePayStatus(aid).catchError((_) => <String, dynamic>{});
+        final sepayPaid =
+            sepay['paid'] == true ||
+            sepay['isPaid'] == true ||
+            (sepay['paymentStatus'] ?? '').toString().toLowerCase() == 'paid' ||
+            apptPay == 'paid' ||
+            appt['paidAt'] != null;
+        if (sepayPaid) {
+          inv['status'] = 'Paid';
+          inv['paymentStatus'] = 'Paid';
+          inv['paymentMethod'] ??= 'BankingQR';
+          inv['paidAt'] ??=
+              sepay['paidAt'] ?? appt['paidAt'] ?? appt['updatedAt'] ?? appt['createdAt'];
+          if ((inv['transactionReference'] ?? '').toString().isEmpty &&
+              (sepay['transactionId'] ?? '').toString().isNotEmpty) {
+            inv['transactionReference'] = sepay['transactionId'];
+          }
+        }
+      }
+    }
+
+    // Synthesize billing entries for paid appointments that have no invoice record yet
+    // (e.g., if paid via webhook or created via /api/appointments/create)
+    for (final appt in appointments) {
+      final aid = (appt['appointmentId'] ?? appt['id'] ?? '').toString().trim();
+      final acode = (appt['appointmentCode'] ?? '').toString().trim();
+      if ((aid.isNotEmpty && matchedApptKeys.contains(aid)) ||
+          (acode.isNotEmpty && matchedApptKeys.contains(acode))) {
+        continue;
+      }
+      final apptSt = (appt['status'] ?? '').toString().toLowerCase();
+      final apptPay = (appt['paymentStatus'] ?? '').toString().toLowerCase();
+      final maybePaid =
+          apptPay == 'paid' ||
+          appt['paidAt'] != null ||
+          apptSt == 'confirmed' ||
+          apptSt == 'checkedin' ||
+          apptSt == 'inprogress' ||
+          apptSt == 'completed';
+      if (!maybePaid || aid.isEmpty) continue;
+
+      final checkoutRes = await getSePayCheckout(aid).catchError(
+        (_) => (checkout: null, unavailableReason: null),
+      );
+      final c = checkoutRes.checkout;
+      if (c == null) continue;
+      final isPaid =
+          c['paid'] == true ||
+          c['isPaid'] == true ||
+          apptPay == 'paid' ||
+          appt['paidAt'] != null;
+      if (!isPaid) continue;
+
+      final amount = c['amount'] ?? 0;
+      final pkgName =
+          (c['packageName'] ??
+                  appt['packageName'] ??
+                  appt['testPackageName'] ??
+                  'Gói xét nghiệm')
+              .toString();
+      final code =
+          acode.isNotEmpty ? 'INV-$acode' : 'INV-${aid.toUpperCase()}';
+      merged[code] = <String, dynamic>{
+        'id': code,
+        'invoiceCode': code,
+        'appointmentId': aid,
+        'appointmentCode': acode.isNotEmpty ? acode : aid,
+        'packageName': pkgName,
+        'totalAmount': amount,
+        'subTotal': amount,
+        'status': 'Paid',
+        'paymentMethod': 'BankingQR',
+        'transactionReference': c['transactionId'],
+        'paidAt': c['paidAt'] ?? appt['paidAt'] ?? appt['createdAt'],
+        'createdAt': appt['createdAt'] ?? c['paidAt'],
+        'items': [
+          {
+            'itemName': pkgName,
+            'quantity': 1,
+            'unitPrice': amount,
+            'totalPrice': amount,
+          },
+        ],
+      };
+    }
+
+    final result = merged.values.toList();
+    result.sort((a, b) {
+      final da = DateTime.tryParse((a['paidAt'] ?? a['createdAt'] ?? '').toString());
+      final db = DateTime.tryParse((b['paidAt'] ?? b['createdAt'] ?? '').toString());
+      if (da == null && db == null) return 0;
+      if (da == null) return 1;
+      if (db == null) return -1;
+      return db.compareTo(da);
+    });
+    return result;
+  }
+
+  /// `GET /api/payments/sepay/checkout/{appointmentId}`
   Future<({Map<String, dynamic>? checkout, String? unavailableReason})>
   getSePayCheckout(String appointmentId) async {
     final res = await _http.get(
@@ -370,34 +581,36 @@ class PatientPortalApi {
         unavailableReason: null,
       );
     }
-    if (res.statusCode == 503) {
-      return (
-        checkout: null,
-        unavailableReason: res.extractMessage(
-          'Cổng chuyển khoản SePay hiện chưa cấu hình tài khoản ngân hàng trên máy chủ.',
-        ),
-      );
-    }
     return (
       checkout: null,
       unavailableReason: res.extractMessage(
-        'Không thể khởi tạo mã QR chuyển khoản lúc này.',
+        res.statusCode == 503
+            ? 'Cổng chuyển khoản SePay hiện chưa cấu hình tài khoản ngân hàng trên máy chủ.'
+            : 'Không thể khởi tạo mã QR chuyển khoản lúc này.',
       ),
     );
   }
 
-  /// `POST /api/payments/process`
-  Future<Map<String, dynamic>> processSePayPayment(String invoiceId) async {
+  /// `GET /api/payments/sepay/status/{appointmentId}`
+  Future<Map<String, dynamic>> getSePayStatus(String appointmentId) async {
+    final res = await _http.get(
+      '/api/payments/sepay/status/${Uri.encodeComponent(appointmentId)}',
+    );
+    if (!res.isSuccess) return {};
+    final data = res.data;
+    return data is Map ? Map<String, dynamic>.from(data) : res.bodyAsMap;
+  }
+
+  /// `POST /api/payments/sepay/simulate/{appointmentId}` (Sandbox Demo 1-tap)
+  Future<Map<String, dynamic>> simulateSePayPayment(
+    String appointmentId,
+  ) async {
     final res = await _http.post(
-      '/api/payments/process',
-      body: {
-        'invoiceId': invoiceId,
-        'paymentMethod': 'SePay',
-      },
+      '/api/payments/sepay/simulate/${Uri.encodeComponent(appointmentId)}',
     );
     if (!res.isSuccess) {
       throw BmsApiException(
-        res.extractMessage('Xử lý thanh toán không thành công.'),
+        res.extractMessage('Không thể giả lập thanh toán SePay.'),
         statusCode: res.statusCode,
       );
     }
@@ -405,19 +618,91 @@ class PatientPortalApi {
     return data is Map ? Map<String, dynamic>.from(data) : res.bodyAsMap;
   }
 
-  /// `GET /api/notifications/test-results/patient/{patientId}/unread-count`
-  Future<int> getUnreadResultNotificationCount(String patientId) async {
-    if (patientId.trim().isEmpty) return 0;
+  // ===================== FEEDBACK HUB (ROOT /TestOrder/feedback) =====================
+
+  Future<List<Map<String, dynamic>>> getMyFeedbacks(String userId) async {
+    if (userId.trim().isEmpty) return const [];
     final res = await _http.get(
-      '/api/notifications/test-results/patient/${Uri.encodeComponent(patientId.trim())}/unread-count',
+      '/TestOrder/feedback/patient/${Uri.encodeComponent(userId.trim())}',
     );
-    if (!res.isSuccess) return 0;
-    final data = res.data;
-    if (data is num) return data.toInt();
-    return int.tryParse(data?.toString() ?? '') ?? 0;
+    if (!res.isSuccess) return const [];
+    return _toMapList(res.data);
   }
 
-  /// Fetches and combines all 3 notification feeds for the signed-in patient.
+  Future<List<Map<String, dynamic>>> getMyEligiblePackages() async {
+    final res = await _http.get('/TestOrder/feedback/my-eligible-packages');
+    if (!res.isSuccess) return const [];
+    return _toMapList(res.data);
+  }
+
+  Future<Map<String, dynamic>> checkFeedbackEligibility() async {
+    final res = await _http.get('/TestOrder/feedback/eligibility');
+    if (!res.isSuccess) {
+      return {'isEligible': false, 'reason': res.extractMessage('')};
+    }
+    final data = res.data;
+    return data is Map ? Map<String, dynamic>.from(data) : res.bodyAsMap;
+  }
+
+  Future<Map<String, dynamic>> createFeedback(
+    Map<String, dynamic> payload,
+  ) async {
+    final res = await _http.post('/TestOrder/feedback', body: payload);
+    if (!res.isSuccess) {
+      throw BmsApiException(
+        res.extractMessage('Gửi đánh giá không thành công.'),
+        statusCode: res.statusCode,
+      );
+    }
+    final data = res.data;
+    return data is Map ? Map<String, dynamic>.from(data) : res.bodyAsMap;
+  }
+
+  Future<Map<String, dynamic>> updateFeedback(
+    String feedbackId,
+    Map<String, dynamic> payload,
+  ) async {
+    final res = await _http.put(
+      '/TestOrder/feedback/${Uri.encodeComponent(feedbackId)}',
+      body: payload,
+    );
+    if (!res.isSuccess) {
+      throw BmsApiException(
+        res.extractMessage('Cập nhật đánh giá không thành công.'),
+        statusCode: res.statusCode,
+      );
+    }
+    final data = res.data;
+    return data is Map ? Map<String, dynamic>.from(data) : res.bodyAsMap;
+  }
+
+  Future<void> deleteFeedback(String feedbackId) async {
+    final res = await _http.delete(
+      '/TestOrder/feedback/${Uri.encodeComponent(feedbackId)}',
+    );
+    if (!res.isSuccess) {
+      throw BmsApiException(
+        res.extractMessage('Xóa đánh giá không thành công.'),
+        statusCode: res.statusCode,
+      );
+    }
+  }
+
+  Future<void> respondDeleteConsent(String feedbackId, bool approved) async {
+    final res = await _http.post(
+      '/TestOrder/feedback/${Uri.encodeComponent(feedbackId)}/consent-delete',
+      body: {'approved': approved},
+    );
+    if (!res.isSuccess) {
+      throw BmsApiException(
+        res.extractMessage('Không thể gửi xác nhận yêu cầu xóa.'),
+        statusCode: res.statusCode,
+      );
+    }
+  }
+
+  // ===================== NOTIFICATIONS =====================
+
   Future<List<Map<String, dynamic>>> getCombinedNotifications({
     required String patientId,
   }) async {
@@ -431,6 +716,7 @@ class PatientPortalApi {
         );
         if (res.isSuccess) {
           for (final item in _toMapList(res.data)) {
+            final st = (item['status'] ?? '').toString().toUpperCase();
             merged.add({
               'id': (item['notificationId'] ?? item['id'] ?? '').toString(),
               'source': 'test_result',
@@ -438,12 +724,18 @@ class PatientPortalApi {
                   .toString(),
               'message': (item['message'] ?? '').toString(),
               'createdAt':
-                  (item['sentAt'] ?? item['createdAt'] ?? '').toString(),
+                  (item['sentAt'] ??
+                          item['createdAt'] ??
+                          item['dispatchedAt'] ??
+                          '')
+                      .toString(),
               'isRead':
-                  (item['status'] ?? '').toString().toLowerCase() == 'read' ||
-                  item['readAt'] != null,
+                  st == 'READ' ||
+                  item['readAt'] != null ||
+                  item['isRead'] == true,
               'isPanic': item['isCriticalPanicValue'] == true,
-              'orderId': (item['testOrderId'] ?? '').toString(),
+              'orderId': (item['testOrderId'] ?? item['orderId'] ?? '')
+                  .toString(),
               'raw': item,
             });
           }
@@ -455,13 +747,22 @@ class PatientPortalApi {
       final res = await _http.get('/api/notifications/appointments');
       if (res.isSuccess) {
         for (final item in _toMapList(res.data)) {
+          final st = (item['status'] ?? '').toString().toUpperCase();
           merged.add({
             'id': (item['id'] ?? item['notificationId'] ?? '').toString(),
             'source': 'appointment',
             'title': (item['title'] ?? 'Nhắc lịch hẹn khám').toString(),
             'message': (item['message'] ?? item['content'] ?? '').toString(),
-            'createdAt': (item['sentAt'] ?? item['createdAt'] ?? '').toString(),
-            'isRead': item['isRead'] == true,
+            'createdAt':
+                (item['sentAt'] ??
+                        item['createdAt'] ??
+                        item['dispatchedAt'] ??
+                        '')
+                    .toString(),
+            'isRead':
+                st == 'READ' ||
+                item['readAt'] != null ||
+                item['isRead'] == true,
             'isPanic': false,
             'appointmentId': (item['appointmentId'] ?? '').toString(),
             'raw': item,
@@ -477,16 +778,22 @@ class PatientPortalApi {
         );
         if (res.isSuccess) {
           for (final item in _toMapList(res.data)) {
+            final st = (item['status'] ?? '').toString().toUpperCase();
             merged.add({
               'id': (item['id'] ?? item['notificationId'] ?? '').toString(),
               'source': 'user',
               'title': (item['title'] ?? 'Thông báo hệ thống').toString(),
               'message': (item['message'] ?? item['body'] ?? '').toString(),
               'createdAt':
-                  (item['createdAt'] ?? item['sentAt'] ?? '').toString(),
+                  (item['createdAt'] ??
+                          item['dispatchedAt'] ??
+                          item['sentAt'] ??
+                          '')
+                      .toString(),
               'isRead':
-                  item['isRead'] == true ||
-                  (item['status'] ?? '').toString().toLowerCase() == 'read',
+                  st == 'READ' ||
+                  item['readAt'] != null ||
+                  item['isRead'] == true,
               'isPanic':
                   (item['priority'] ?? '').toString().toLowerCase() ==
                   'critical',
@@ -509,7 +816,6 @@ class PatientPortalApi {
     return merged;
   }
 
-  /// Marks a single notification item as read according to its feed source.
   Future<void> markNotificationRead({
     required String id,
     required String source,
@@ -530,7 +836,6 @@ class PatientPortalApi {
     }
   }
 
-  /// Marks all user push notifications read.
   Future<void> markAllUserNotificationsRead(String userId) async {
     if (userId.trim().isEmpty) return;
     await _http.patch(

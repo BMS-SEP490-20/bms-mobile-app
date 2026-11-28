@@ -3,7 +3,7 @@ import '../../../../core/network/bms_http_client.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/bms_ui_kit.dart';
 
-/// Change Password Screen backed by real `POST /api/auth/passwords/change`.
+/// Change Password Screen matching Web `ChangePassword.jsx` 1-1 (`POST /api/auth/passwords/change`).
 class ChangePasswordScreen extends StatefulWidget {
   const ChangePasswordScreen({super.key});
 
@@ -31,6 +31,28 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
     _newPasswordCtrl.dispose();
     _confirmPasswordCtrl.dispose();
     super.dispose();
+  }
+
+  ({double score, String label, Color color}) _evaluateStrength(String pwd) {
+    if (pwd.isEmpty) {
+      return (score: 0, label: '', color: AppColors.danger);
+    }
+    var score = 0.0;
+    if (pwd.length >= 6) score += 0.25;
+    if (pwd.length >= 10) score += 0.25;
+    if (RegExp(r'[A-Z]').hasMatch(pwd)) score += 0.25;
+    if (RegExp(r'[0-9!@#$%^&*]').hasMatch(pwd)) score += 0.25;
+
+    if (score <= 0.25) {
+      return (score: score, label: 'Yếu', color: AppColors.danger);
+    }
+    if (score <= 0.50) {
+      return (score: score, label: 'Trung bình', color: AppColors.warning);
+    }
+    if (score <= 0.75) {
+      return (score: score, label: 'Khá', color: AppColors.teal);
+    }
+    return (score: 1.0, label: 'Rất mạnh', color: AppColors.success);
   }
 
   Future<void> _handleChangePassword() async {
@@ -97,12 +119,14 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final strength = _evaluateStrength(_newPasswordCtrl.text);
+
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(title: const Text('Đổi mật khẩu tài khoản')),
       body: SafeArea(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.all(20),
+          padding: const EdgeInsets.all(18),
           child: Form(
             key: _formKey,
             child: Column(
@@ -111,9 +135,9 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
                 const BmsPageHeaderCard(
                   icon: Icons.security_rounded,
                   badgeText: 'Bảo mật đăng nhập',
-                  title: 'Thay đổi mật khẩu',
+                  title: 'Đổi mật khẩu bảo mật',
                   subtitle:
-                      'Mật khẩu mới cần tối thiểu 6 ký tự và khác với mật khẩu đang sử dụng',
+                      'Cập nhật mật khẩu định kỳ để bảo vệ tài khoản và hồ sơ y tế',
                 ),
                 const SizedBox(height: 16),
                 BmsSoftCard(
@@ -150,13 +174,13 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
                       TextFormField(
                         controller: _newPasswordCtrl,
                         obscureText: _obscureNew,
+                        onChanged: (_) => setState(() {}),
                         decoration: InputDecoration(
                           labelText: 'Mật khẩu mới *',
                           prefixIcon: const Icon(Icons.lock_outline_rounded),
                           suffixIcon: IconButton(
-                            onPressed: () => setState(
-                              () => _obscureNew = !_obscureNew,
-                            ),
+                            onPressed: () =>
+                                setState(() => _obscureNew = !_obscureNew),
                             icon: Icon(
                               _obscureNew
                                   ? Icons.visibility_off_outlined
@@ -168,6 +192,39 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
                             ? 'Mật khẩu mới tối thiểu 6 ký tự.'
                             : null,
                       ),
+                      if (_newPasswordCtrl.text.isNotEmpty) ...[
+                        const SizedBox(height: 8),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            const Text(
+                              'Độ mạnh mật khẩu',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: AppColors.textSecondary,
+                              ),
+                            ),
+                            Text(
+                              strength.label,
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w700,
+                                color: strength.color,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 5),
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(999),
+                          child: LinearProgressIndicator(
+                            value: strength.score,
+                            minHeight: 6,
+                            backgroundColor: AppColors.surfaceMuted,
+                            valueColor: AlwaysStoppedAnimation(strength.color),
+                          ),
+                        ),
+                      ],
                       const SizedBox(height: 12),
                       TextFormField(
                         controller: _confirmPasswordCtrl,
