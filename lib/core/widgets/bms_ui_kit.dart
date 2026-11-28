@@ -90,22 +90,32 @@ class BmsFormatters {
   static String paymentMethodVi(String? raw) {
     switch ((raw ?? '').trim().toLowerCase()) {
       case 'cash':
-        return 'Tiền mặt';
-      case 'bankingqr':
-      case 'banktransfer':
-        return 'Chuyển khoản QR';
-      case 'sepay':
-        return 'Chuyển khoản SePay';
+      case '1':
+        return 'Tiền mặt tại quầy';
       case 'vnpay':
+      case '2':
         return 'Cổng VNPay';
+      case 'banktransfer':
+      case '3':
+        return 'Chuyển khoản ngân hàng';
       case 'creditcard':
+      case '4':
         return 'Thẻ POS / Tín dụng';
       case 'momo':
+      case '5':
         return 'Ví MoMo';
+      case 'bankingqr':
+      case 'sepay':
+      case 'vietqr':
+      case '6':
+        return 'Chuyển khoản SePay VietQR';
       case 'reception':
-        return 'Thu tại quầy';
+      case '7':
+        return 'Thu tại quầy tiếp đón';
       default:
-        return raw?.toString().isNotEmpty == true ? raw.toString() : 'Tiền mặt';
+        return raw?.toString().isNotEmpty == true
+            ? raw.toString()
+            : 'Chuyển khoản SePay VietQR';
     }
   }
 }
@@ -654,8 +664,13 @@ class BmsStatusPill extends StatelessWidget {
           bg: AppColors.warningLight,
           fg: AppColors.warningText,
         );
-      case 'refunded':
       case 'partiallyrefunded':
+        return (
+          label: 'Hoàn phí một phần',
+          bg: AppColors.warningLight,
+          fg: AppColors.warningText,
+        );
+      case 'refunded':
         return (
           label: 'Đã hoàn phí',
           bg: AppColors.surfaceMuted,

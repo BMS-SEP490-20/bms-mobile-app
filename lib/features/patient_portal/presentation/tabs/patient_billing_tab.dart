@@ -5,10 +5,13 @@ import '../../../../core/widgets/bms_ui_kit.dart';
 import '../../data/patient_portal_api.dart';
 import '../screens/sepay_checkout_screen.dart';
 
-/// 1-to-1 Patient Billing & Invoices History matching Web `PatientPaymentHistoryPage.jsx`:
+/// 1-to-1 Patient Billing & Invoices History aligned with Backend `InvoiceStatus`:
+/// - `0 = Unpaid`, `1 = Paid`, `2 = PartiallyRefunded`, `3 = Refunded`, `4 = Voided`
+/// - Unpaid invoices linked to a Cancelled/NoShow appointment are treated as closed
 /// - Strictly ZERO BHYT lines, ZERO VNPay/Reception 403 buttons
-/// - Unpaid invoices open `SePayCheckoutScreen` (real VietQR + 3s polling + Sandbox)
-/// - Paid invoices display clean K80 Electronic Receipt modal with `BMS-HOADON|...` QR
+/// - Unpaid online appointment invoices open `SePayCheckoutScreen` (real VietQR + 3s polling + Sandbox)
+/// - Unpaid counter invoices (no `appointmentId`) instruct the patient to settle at Reception
+/// - Paid invoices display an Electronic Receipt modal with `BMS-HOADON|...` QR
 class PatientBillingTab extends StatefulWidget {
   final bool asStandaloneScreen;
 
@@ -66,16 +69,37 @@ class _PatientBillingTabState extends State<PatientBillingTab> {
           .trim()
           .toLowerCase();
 
-  /// Voided / refunded / cancelled invoices are closed: never payable, never "pending".
-  bool _isClosed(Map<String, dynamic> inv) {
+  String _appointmentStatusOf(Map<String, dynamic> inv) =>
+      (inv['appointmentStatus'] ?? '').toString().trim().toLowerCase();
+
+  bool _isPartiallyRefunded(Map<String, dynamic> inv) {
     final s = _statusOf(inv);
-    return s == 'voided' ||
-        s == 'refunded' ||
-        s == 'partiallyrefunded' ||
-        s == 'cancelled' ||
-        s == '3' ||
-        s == '4';
+    return s == 'partiallyrefunded' || s == '2';
   }
+
+  bool _isRefunded(Map<String, dynamic> inv) {
+    final s = _statusOf(inv);
+    return s == 'refunded' || s == '3';
+  }
+
+  bool _isVoidedOrCancelled(Map<String, dynamic> inv) {
+    final s = _statusOf(inv);
+    if (s == 'voided' || s == '4' || s == 'cancelled') return true;
+    final hasPaidSignal =
+        s == 'paid' || s == '1' || s == 'completed' || inv['paidAt'] != null;
+    if (!hasPaidSignal) {
+      final apptSt = _appointmentStatusOf(inv);
+      if (apptSt == 'cancelled' || apptSt == 'noshow') return true;
+    }
+    return false;
+  }
+
+  /// PartiallyRefunded(2), Refunded(3), Voided(4), or unpaid Cancelled/NoShow appointment:
+  /// closed invoices are never payable and never counted as "Chờ thanh toán".
+  bool _isClosed(Map<String, dynamic> inv) =>
+      _isPartiallyRefunded(inv) ||
+      _isRefunded(inv) ||
+      _isVoidedOrCancelled(inv);
 
   bool _isPaid(Map<String, dynamic> inv) {
     if (_isClosed(inv)) return false;
@@ -83,19 +107,29 @@ class _PatientBillingTabState extends State<PatientBillingTab> {
     return s == 'paid' || s == '1' || s == 'completed' || inv['paidAt'] != null;
   }
 
-  /// Only genuinely unpaid invoices can open SePay checkout / count as "Chờ thanh toán".
+  /// Only genuinely open unpaid invoices can be settled and count as "Chờ thanh toán".
   bool _isPayable(Map<String, dynamic> inv) => !_isPaid(inv) && !_isClosed(inv);
 
-  double _amountOf(Map<String, dynamic> inv) {
-    final raw =
+  String _statusPillKey(Map<String, dynamic> inv) {
+    if (_isPaid(inv)) return 'Paid';
+    if (_isPartiallyRefunded(inv)) return 'PartiallyRefunded';
+    if (_isRefunded(inv)) return 'Refunded';
+    if (_isVoidedOrCancelled(inv)) return 'Cancelled';
+    return 'Unpaid';
+  }
+
+  double _numOf(dynamic raw) {
+    if (raw is num) return raw.toDouble();
+    return double.tryParse((raw ?? '').toString()) ?? 0;
+  }
+
+  double _amountOf(Map<String, dynamic> inv) => _numOf(
+    inv['totalAmount'] ??
         inv['finalAmount'] ??
-        inv['totalAmount'] ??
         inv['amount'] ??
         inv['subTotal'] ??
-        0;
-    if (raw is num) return raw.toDouble();
-    return double.tryParse(raw.toString()) ?? 0;
-  }
+        0,
+  );
 
   String _packageNameOf(Map<String, dynamic> inv) {
     final direct = (inv['packageName'] ?? inv['testName'] ?? '')
@@ -121,6 +155,7 @@ class _PatientBillingTabState extends State<PatientBillingTab> {
     return _invoices.where((inv) {
       if (_statusFilter == 'PAID' && !_isPaid(inv)) return false;
       if (_statusFilter == 'UNPAID' && !_isPayable(inv)) return false;
+      if (_statusFilter == 'CLOSED' && !_isClosed(inv)) return false;
       if (q.isNotEmpty) {
         final pkgName = _packageNameOf(inv);
         final blob =
@@ -135,10 +170,13 @@ class _PatientBillingTabState extends State<PatientBillingTab> {
   void _showReceiptSheet(Map<String, dynamic> inv) {
     final code = (inv['invoiceCode'] ?? inv['id'] ?? '').toString();
     final total = _amountOf(inv);
+    final subTotal = _numOf(inv['subTotal']);
+    final discount = _numOf(inv['discountAmount']);
     final apptCode = (inv['appointmentCode'] ?? '').toString().trim();
     final txRef = (inv['transactionReference'] ?? inv['receiptNumber'] ?? '')
         .toString()
         .trim();
+    final cashierName = (inv['cashierName'] ?? '').toString().trim();
     final items = inv['items'] is List
         ? (inv['items'] as List)
               .whereType<Map>()
@@ -184,9 +222,11 @@ class _PatientBillingTabState extends State<PatientBillingTab> {
               BmsInfoRow(
                 label: 'Phương thức',
                 value: BmsFormatters.paymentMethodVi(
-                  (inv['paymentMethod'] ?? 'SePay').toString(),
+                  (inv['paymentMethod'] ?? 'BankingQR').toString(),
                 ),
               ),
+              if (cashierName.isNotEmpty)
+                BmsInfoRow(label: 'Thu ngân', value: cashierName),
               if (items.isNotEmpty) ...[
                 const Divider(height: 18),
                 ...items.map((it) {
@@ -196,16 +236,28 @@ class _PatientBillingTabState extends State<PatientBillingTab> {
                               it['name'] ??
                               'Dịch vụ xét nghiệm')
                           .toString();
-                  final rawPrice =
-                      it['totalPrice'] ?? it['unitPrice'] ?? it['price'] ?? 0;
-                  final price = rawPrice is num
-                      ? rawPrice
-                      : (num.tryParse(rawPrice.toString()) ?? 0);
+                  final price = _numOf(
+                    it['totalPrice'] ?? it['unitPrice'] ?? it['price'] ?? 0,
+                  );
                   return BmsInfoRow(
                     label: itemLabel,
                     value: BmsFormatters.currency(price),
                   );
                 }),
+              ],
+              if (discount > 0) ...[
+                const Divider(height: 14),
+                BmsInfoRow(
+                  label: 'Tạm tính',
+                  value: BmsFormatters.currency(
+                    subTotal > 0 ? subTotal : total + discount,
+                  ),
+                ),
+                BmsInfoRow(
+                  label: 'Giảm giá',
+                  value: '-${BmsFormatters.currency(discount)}',
+                  valueColor: AppColors.successText,
+                ),
               ],
               const Divider(height: 18),
               BmsInfoRow(
@@ -245,12 +297,18 @@ class _PatientBillingTabState extends State<PatientBillingTab> {
 
   @override
   Widget build(BuildContext context) {
-    final totalPaid = _invoices
-        .where(_isPaid)
-        .fold<double>(0, (sum, i) => sum + _amountOf(i));
-    final totalUnpaid = _invoices
-        .where(_isPayable)
-        .fold<double>(0, (sum, i) => sum + _amountOf(i));
+    final paidInvoices = _invoices.where(_isPaid).toList();
+    final unpaidInvoices = _invoices.where(_isPayable).toList();
+    final closedInvoices = _invoices.where(_isClosed).toList();
+
+    final totalPaid = paidInvoices.fold<double>(
+      0,
+      (sum, i) => sum + _amountOf(i),
+    );
+    final totalUnpaid = unpaidInvoices.fold<double>(
+      0,
+      (sum, i) => sum + _amountOf(i),
+    );
 
     final body = RefreshIndicator(
       onRefresh: _load,
@@ -269,12 +327,14 @@ class _PatientBillingTabState extends State<PatientBillingTab> {
               BmsKpiCard(
                 label: 'Đã thanh toán',
                 value: BmsFormatters.currency(totalPaid),
+                subtitle: '${paidInvoices.length} giao dịch hoàn tất',
                 icon: Icons.check_circle_outline_rounded,
                 accentColor: AppColors.success,
               ),
               BmsKpiCard(
                 label: 'Chờ thanh toán',
                 value: BmsFormatters.currency(totalUnpaid),
+                subtitle: '${unpaidInvoices.length} hóa đơn cần thanh toán',
                 icon: Icons.pending_actions_rounded,
                 accentColor: AppColors.warning,
               ),
@@ -294,16 +354,23 @@ class _PatientBillingTabState extends State<PatientBillingTab> {
               ),
               BmsFilterChipItem(
                 key: 'UNPAID',
-                label: 'Chờ thanh toán',
+                label: 'Chờ thanh toán (${unpaidInvoices.length})',
                 selected: _statusFilter == 'UNPAID',
                 onSelected: () => setState(() => _statusFilter = 'UNPAID'),
               ),
               BmsFilterChipItem(
                 key: 'PAID',
-                label: 'Đã thanh toán',
+                label: 'Đã thanh toán (${paidInvoices.length})',
                 selected: _statusFilter == 'PAID',
                 onSelected: () => setState(() => _statusFilter = 'PAID'),
               ),
+              if (closedInvoices.isNotEmpty)
+                BmsFilterChipItem(
+                  key: 'CLOSED',
+                  label: 'Đã hủy / Hoàn phí (${closedInvoices.length})',
+                  selected: _statusFilter == 'CLOSED',
+                  onSelected: () => setState(() => _statusFilter = 'CLOSED'),
+                ),
             ],
           ),
           const SizedBox(height: 14),
@@ -335,14 +402,83 @@ class _PatientBillingTabState extends State<PatientBillingTab> {
     return body;
   }
 
+  Widget _buildClosedBanner(Map<String, dynamic> inv) {
+    final text = _isPartiallyRefunded(inv)
+        ? 'Hóa đơn đã được hoàn phí một phần.'
+        : _isRefunded(inv)
+        ? 'Hóa đơn đã được hoàn phí toàn bộ.'
+        : 'Hóa đơn hoặc lịch hẹn đã hủy — không cần thanh toán.';
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+      decoration: BoxDecoration(
+        color: AppColors.surfaceMuted,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: AppColors.cardBorder),
+      ),
+      child: Row(
+        children: [
+          const Icon(
+            Icons.info_outline_rounded,
+            size: 16,
+            color: AppColors.textSecondary,
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              text,
+              style: const TextStyle(
+                fontSize: 12.2,
+                color: AppColors.textSecondary,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCounterPaymentNotice() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+      decoration: BoxDecoration(
+        color: AppColors.warningLight,
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: const Row(
+        children: [
+          Icon(
+            Icons.storefront_outlined,
+            size: 16,
+            color: AppColors.warningText,
+          ),
+          SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              'Hóa đơn phát sinh tại quầy — vui lòng thanh toán trực tiếp tại Quầy Lễ tân.',
+              style: TextStyle(
+                fontSize: 12.2,
+                color: AppColors.warningText,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildInvoiceCard(Map<String, dynamic> inv) {
     final paid = _isPaid(inv);
     final closed = _isClosed(inv);
     final code = (inv['invoiceCode'] ?? inv['id'] ?? '').toString();
-    final apptId = (inv['appointmentId'] ?? '').toString();
+    final apptId = (inv['appointmentId'] ?? '').toString().trim();
     final apptCode = (inv['appointmentCode'] ?? '').toString().trim();
     final pkgName = _packageNameOf(inv);
     final amount = _amountOf(inv);
+    final paymentMethodRaw = (inv['paymentMethod'] ?? '').toString().trim();
 
     return BmsSoftCard(
       margin: const EdgeInsets.only(bottom: 12),
@@ -363,15 +499,7 @@ class _PatientBillingTabState extends State<PatientBillingTab> {
                   ),
                 ),
               ),
-              BmsStatusPill(
-                status: paid
-                    ? 'Paid'
-                    : closed
-                    ? (_statusOf(inv).contains('refund')
-                          ? 'Refunded'
-                          : 'Cancelled')
-                    : 'Unpaid',
-              ),
+              BmsStatusPill(status: _statusPillKey(inv)),
             ],
           ),
           if (pkgName.isNotEmpty) ...[
@@ -394,52 +522,55 @@ class _PatientBillingTabState extends State<PatientBillingTab> {
               paid ? (inv['paidAt'] ?? inv['createdAt']) : inv['createdAt'],
             ),
           ),
-          if (paid && (inv['paymentMethod'] ?? '').toString().isNotEmpty)
+          if (paid && paymentMethodRaw.isNotEmpty)
             BmsInfoRow(
               label: 'Phương thức',
-              value: BmsFormatters.paymentMethodVi(
-                inv['paymentMethod'].toString(),
-              ),
+              value: BmsFormatters.paymentMethodVi(paymentMethodRaw),
             ),
           BmsInfoRow(
             label: 'Tổng thanh toán',
             value: BmsFormatters.currency(amount),
             isBold: true,
-            valueColor: paid ? AppColors.successText : AppColors.primary,
+            valueColor: paid
+                ? AppColors.successText
+                : closed
+                ? AppColors.textSecondary
+                : AppColors.primary,
           ),
           const SizedBox(height: 10),
-          if (!closed)
+          if (closed)
+            _buildClosedBanner(inv)
+          else if (paid)
             SizedBox(
               width: double.infinity,
-              child: paid
-                  ? OutlinedButton.icon(
-                      onPressed: () => _showReceiptSheet(inv),
-                      icon: const Icon(Icons.receipt_rounded, size: 18),
-                      label: const Text('Xem biên lai điện tử (QR)'),
-                    )
-                  : FilledButton.icon(
-                      onPressed: apptId.isEmpty
-                          ? null
-                          : () async {
-                              final ok = await Navigator.of(context).push<bool>(
-                                MaterialPageRoute(
-                                  builder: (_) => SePayCheckoutScreen(
-                                    appointmentId: apptId,
-                                    appointmentCode: apptCode.isNotEmpty
-                                        ? apptCode
-                                        : null,
-                                    packageName: pkgName.isNotEmpty
-                                        ? pkgName
-                                        : null,
-                                  ),
-                                ),
-                              );
-                              if (ok == true) _load();
-                            },
-                      icon: const Icon(Icons.qr_code_2_rounded, size: 18),
-                      label: const Text('Thanh toán VietQR SePay'),
+              child: OutlinedButton.icon(
+                onPressed: () => _showReceiptSheet(inv),
+                icon: const Icon(Icons.receipt_rounded, size: 18),
+                label: const Text('Xem biên lai điện tử (QR)'),
+              ),
+            )
+          else if (apptId.isNotEmpty)
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton.icon(
+                onPressed: () async {
+                  final ok = await Navigator.of(context).push<bool>(
+                    MaterialPageRoute(
+                      builder: (_) => SePayCheckoutScreen(
+                        appointmentId: apptId,
+                        appointmentCode: apptCode.isNotEmpty ? apptCode : null,
+                        packageName: pkgName.isNotEmpty ? pkgName : null,
+                      ),
                     ),
-            ),
+                  );
+                  if (ok == true) _load();
+                },
+                icon: const Icon(Icons.qr_code_2_rounded, size: 18),
+                label: const Text('Thanh toán VietQR SePay'),
+              ),
+            )
+          else
+            _buildCounterPaymentNotice(),
         ],
       ),
     );

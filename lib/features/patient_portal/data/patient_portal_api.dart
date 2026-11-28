@@ -254,7 +254,9 @@ class PatientPortalApi {
   /// `POST /api/test-results/patient/order/{orderId}/share`
   Future<Map<String, dynamic>> shareOrderResult(String orderId) async {
     final encoded = Uri.encodeComponent(orderId.trim());
-    var res = await _http.post('/api/test-results/patient/order/$encoded/share');
+    var res = await _http.post(
+      '/api/test-results/patient/order/$encoded/share',
+    );
     if (!res.isSuccess) {
       final alt = await _http.post(
         '/api/testresults/patient/order/$encoded/share',
@@ -320,8 +322,10 @@ class PatientPortalApi {
   }) async {
     final initResults = await Future.wait<dynamic>([
       getMedicalProfile().catchError((_) => null),
-      getAppointments(page: 1, pageSize: pageSize)
-          .catchError((_) => <Map<String, dynamic>>[]),
+      getAppointments(
+        page: 1,
+        pageSize: pageSize,
+      ).catchError((_) => <Map<String, dynamic>>[]),
     ]);
 
     final profile = initResults[0] as Map<String, dynamic>?;
@@ -364,13 +368,33 @@ class PatientPortalApi {
         if (existing == null) {
           merged[key] = item;
         } else {
-          // Prefer whichever record is Paid or has richer fields
-          final existingStatus =
-              (existing['status'] ?? '').toString().toLowerCase();
-          final newStatus = (item['status'] ?? '').toString().toLowerCase();
-          if ((newStatus == 'paid' || newStatus == '1') &&
-              existingStatus != 'paid' &&
-              existingStatus != '1') {
+          final existingStatus = (existing['status'] ?? '')
+              .toString()
+              .trim()
+              .toLowerCase();
+          final newStatus = (item['status'] ?? '')
+              .toString()
+              .trim()
+              .toLowerCase();
+          final existingTerminal =
+              existingStatus == 'paid' ||
+              existingStatus == '1' ||
+              existingStatus == 'partiallyrefunded' ||
+              existingStatus == '2' ||
+              existingStatus == 'refunded' ||
+              existingStatus == '3' ||
+              existingStatus == 'voided' ||
+              existingStatus == '4';
+          final newTerminal =
+              newStatus == 'paid' ||
+              newStatus == '1' ||
+              newStatus == 'partiallyrefunded' ||
+              newStatus == '2' ||
+              newStatus == 'refunded' ||
+              newStatus == '3' ||
+              newStatus == 'voided' ||
+              newStatus == '4';
+          if (newTerminal && !existingTerminal) {
             merged[key] = item;
           }
         }
@@ -431,16 +455,17 @@ class PatientPortalApi {
     for (final inv in merged.values) {
       final invApptId = (inv['appointmentId'] ?? '').toString().trim();
       final invApptCode = (inv['appointmentCode'] ?? '').toString().trim();
-      final appt = apptById[invApptId] ??
+      final appt =
+          apptById[invApptId] ??
           apptByCode[invApptCode] ??
           apptByCode[invApptId] ??
           apptById[invApptCode];
       if (appt == null) continue;
 
-      final aid =
-          (appt['appointmentId'] ?? appt['id'] ?? invApptId).toString().trim();
-      final acode =
-          (appt['appointmentCode'] ?? invApptCode).toString().trim();
+      final aid = (appt['appointmentId'] ?? appt['id'] ?? invApptId)
+          .toString()
+          .trim();
+      final acode = (appt['appointmentCode'] ?? invApptCode).toString().trim();
       if (aid.isNotEmpty) matchedApptKeys.add(aid);
       if (acode.isNotEmpty) matchedApptKeys.add(acode);
 
@@ -449,18 +474,39 @@ class PatientPortalApi {
         inv['appointmentCode'] = acode;
       }
       if ((inv['packageName'] ?? '').toString().trim().isEmpty) {
-        final pkg =
-            (appt['packageName'] ?? appt['testPackageName'] ?? '').toString();
+        final pkg = (appt['packageName'] ?? appt['testPackageName'] ?? '')
+            .toString();
         if (pkg.isNotEmpty) inv['packageName'] = pkg;
+      }
+
+      if ((inv['appointmentStatus'] ?? '').toString().trim().isEmpty &&
+          (appt['status'] ?? '').toString().trim().isNotEmpty) {
+        inv['appointmentStatus'] = appt['status'];
       }
 
       final st = (inv['status'] ?? inv['paymentStatus'] ?? '')
           .toString()
+          .trim()
           .toLowerCase();
+      final isInvClosed =
+          st == 'partiallyrefunded' ||
+          st == '2' ||
+          st == 'refunded' ||
+          st == '3' ||
+          st == 'voided' ||
+          st == '4' ||
+          st == 'cancelled';
       final isInvPaid =
-          st == 'paid' || st == '1' || st == 'completed' || inv['paidAt'] != null;
-      final apptSt = (appt['status'] ?? '').toString().toLowerCase();
-      final apptPay = (appt['paymentStatus'] ?? '').toString().toLowerCase();
+          !isInvClosed &&
+          (st == 'paid' ||
+              st == '1' ||
+              st == 'completed' ||
+              inv['paidAt'] != null);
+      final apptSt = (appt['status'] ?? '').toString().trim().toLowerCase();
+      final apptPay = (appt['paymentStatus'] ?? '')
+          .toString()
+          .trim()
+          .toLowerCase();
       final apptLooksPaid =
           apptPay == 'paid' ||
           appt['paidAt'] != null ||
@@ -469,8 +515,10 @@ class PatientPortalApi {
           apptSt == 'inprogress' ||
           apptSt == 'completed';
 
-      if (!isInvPaid && apptLooksPaid && aid.isNotEmpty) {
-        final sepay = await getSePayStatus(aid).catchError((_) => <String, dynamic>{});
+      if (!isInvPaid && !isInvClosed && apptLooksPaid && aid.isNotEmpty) {
+        final sepay = await getSePayStatus(
+          aid,
+        ).catchError((_) => <String, dynamic>{});
         final sepayPaid =
             sepay['paid'] == true ||
             sepay['isPaid'] == true ||
@@ -482,7 +530,10 @@ class PatientPortalApi {
           inv['paymentStatus'] = 'Paid';
           inv['paymentMethod'] ??= 'BankingQR';
           inv['paidAt'] ??=
-              sepay['paidAt'] ?? appt['paidAt'] ?? appt['updatedAt'] ?? appt['createdAt'];
+              sepay['paidAt'] ??
+              appt['paidAt'] ??
+              appt['updatedAt'] ??
+              appt['createdAt'];
           if ((inv['transactionReference'] ?? '').toString().isEmpty &&
               (sepay['transactionId'] ?? '').toString().isNotEmpty) {
             inv['transactionReference'] = sepay['transactionId'];
@@ -511,9 +562,9 @@ class PatientPortalApi {
           apptSt == 'completed';
       if (!maybePaid || aid.isEmpty) continue;
 
-      final checkoutRes = await getSePayCheckout(aid).catchError(
-        (_) => (checkout: null, unavailableReason: null),
-      );
+      final checkoutRes = await getSePayCheckout(
+        aid,
+      ).catchError((_) => (checkout: null, unavailableReason: null));
       final c = checkoutRes.checkout;
       if (c == null) continue;
       final isPaid =
@@ -530,8 +581,7 @@ class PatientPortalApi {
                   appt['testPackageName'] ??
                   'Gói xét nghiệm')
               .toString();
-      final code =
-          acode.isNotEmpty ? 'INV-$acode' : 'INV-${aid.toUpperCase()}';
+      final code = acode.isNotEmpty ? 'INV-$acode' : 'INV-${aid.toUpperCase()}';
       merged[code] = <String, dynamic>{
         'id': code,
         'invoiceCode': code,
@@ -558,8 +608,12 @@ class PatientPortalApi {
 
     final result = merged.values.toList();
     result.sort((a, b) {
-      final da = DateTime.tryParse((a['paidAt'] ?? a['createdAt'] ?? '').toString());
-      final db = DateTime.tryParse((b['paidAt'] ?? b['createdAt'] ?? '').toString());
+      final da = DateTime.tryParse(
+        (a['paidAt'] ?? a['createdAt'] ?? '').toString(),
+      );
+      final db = DateTime.tryParse(
+        (b['paidAt'] ?? b['createdAt'] ?? '').toString(),
+      );
       if (da == null && db == null) return 0;
       if (da == null) return 1;
       if (db == null) return -1;
