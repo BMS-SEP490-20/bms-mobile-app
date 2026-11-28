@@ -7,6 +7,8 @@ import '../../../../services/bms_auth.dart';
 import '../../../auth/presentation/screens/change_password_screen.dart';
 import '../../../notification/presentation/screens/unified_notifications_screen.dart';
 import '../../data/patient_portal_api.dart';
+import '../screens/patient_feedback_screen.dart';
+import 'patient_billing_tab.dart';
 
 /// Tab 5 of PatientShellScreen — Clinical Medical Profile (`GET/PUT /api/patients/me`),
 /// Account Contact (`PUT /api/users/{id}`), Dependents, Security & Logout.
@@ -250,6 +252,7 @@ class _PatientProfileTabState extends State<PatientProfileTab> {
           ),
           const SizedBox(height: 16),
 
+          // Demographics & Clinical Profile
           const BmsSectionHeader(title: 'Hồ sơ y tế lâm sàng'),
           const SizedBox(height: 8),
           BmsSoftCard(
@@ -377,12 +380,61 @@ class _PatientProfileTabState extends State<PatientProfileTab> {
           ],
 
           const SizedBox(height: 16),
-          const BmsSectionHeader(title: 'Tài khoản & Bảo mật'),
+          const BmsSectionHeader(title: 'Dịch vụ, Tài khoản & Bảo mật'),
           const SizedBox(height: 8),
           BmsSoftCard(
             padding: const EdgeInsets.symmetric(vertical: 4),
             child: Column(
               children: [
+                ListTile(
+                  leading: const Icon(
+                    Icons.receipt_long_outlined,
+                    color: AppColors.primary,
+                  ),
+                  title: const Text(
+                    'Viện phí & Thanh toán SePay',
+                    style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
+                  ),
+                  subtitle: const Text(
+                    'Hóa đơn chờ thanh toán & biên lai điện tử',
+                    style: TextStyle(fontSize: 12),
+                  ),
+                  trailing: const Icon(Icons.chevron_right_rounded),
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) =>
+                            const PatientBillingTab(asStandaloneScreen: true),
+                      ),
+                    );
+                  },
+                ),
+                const Divider(indent: 16, endIndent: 16),
+                ListTile(
+                  leading: const Icon(
+                    Icons.star_outline_rounded,
+                    color: AppColors.warning,
+                  ),
+                  title: const Text(
+                    'Đánh giá & Góp ý Y tế',
+                    style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
+                  ),
+                  subtitle: const Text(
+                    'Đánh giá các gói xét nghiệm đã sử dụng',
+                    style: TextStyle(fontSize: 12),
+                  ),
+                  trailing: const Icon(Icons.chevron_right_rounded),
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const PatientFeedbackScreen(),
+                      ),
+                    );
+                  },
+                ),
+                const Divider(indent: 16, endIndent: 16),
                 ListTile(
                   leading: const Icon(
                     Icons.contact_mail_outlined,
@@ -762,7 +814,9 @@ class _EditMedicalProfileSheetState extends State<_EditMedicalProfileSheet> {
                     const SizedBox(width: 10),
                     Expanded(
                       child: DropdownButtonFormField<String>(
-                        initialValue: _gender,
+                        initialValue: const ['Male', 'Female', 'Other'].contains(_gender)
+                            ? _gender
+                            : 'Male',
                         decoration: const InputDecoration(
                           labelText: 'Giới tính *',
                         ),
@@ -815,6 +869,7 @@ class _EditMedicalProfileSheetState extends State<_EditMedicalProfileSheet> {
                 ),
                 const SizedBox(height: 16),
 
+                // 4x2 ABO/Rh Blood Type Selector
                 const Text(
                   'Nhóm máu hệ ABO / Rh *',
                   style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13.5),

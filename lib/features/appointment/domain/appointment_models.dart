@@ -6,8 +6,8 @@ library;
 class BookAppointmentRequest {
   final String patientId;
   final String doctorId;
-  final String appointmentDate;
-  final String slotTime;
+  final String appointmentDate; // YYYY-MM-DD
+  final String slotTime; // HH:mm
   final List<String> packageIds;
   final String? notes;
   final String type;
@@ -136,18 +136,30 @@ class DoctorOption {
   final String doctorId;
   final String doctorName;
   final String specialty;
+  final String shiftType;
+  final String shiftStart;
+  final String shiftEnd;
+  final String roomName;
 
   const DoctorOption({
     required this.doctorId,
     required this.doctorName,
     required this.specialty,
+    this.shiftType = '',
+    this.shiftStart = '',
+    this.shiftEnd = '',
+    this.roomName = '',
   });
 
   factory DoctorOption.fromJson(Map<String, dynamic> json) {
     return DoctorOption(
-      doctorId: json['doctorId'] as String? ?? '',
-      doctorName: json['doctorName'] as String? ?? '',
-      specialty: json['specialty'] as String? ?? '',
+      doctorId: (json['doctorId'] ?? json['id'] ?? '').toString().trim(),
+      doctorName: (json['doctorName'] ?? json['fullName'] ?? '').toString().trim(),
+      specialty: (json['specialty'] ?? '').toString().trim(),
+      shiftType: (json['shiftType'] ?? '').toString().trim(),
+      shiftStart: (json['shiftStart'] ?? '').toString().trim(),
+      shiftEnd: (json['shiftEnd'] ?? '').toString().trim(),
+      roomName: (json['roomName'] ?? json['roomNumber'] ?? '').toString().trim(),
     );
   }
 }

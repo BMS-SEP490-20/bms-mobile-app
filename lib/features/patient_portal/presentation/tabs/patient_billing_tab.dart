@@ -3,10 +3,16 @@ import 'package:qr_flutter/qr_flutter.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/bms_ui_kit.dart';
 import '../../data/patient_portal_api.dart';
+import '../screens/sepay_checkout_screen.dart';
 
-/// Tab 4 of PatientShellScreen — Patient Invoices, BHYT Breakdown & SePay Checkout.
+/// 1-to-1 Patient Billing & Invoices History matching Web `PatientPaymentHistoryPage.jsx`:
+/// - Strictly ZERO BHYT lines, ZERO VNPay/Reception 403 buttons
+/// - Unpaid invoices open `SePayCheckoutScreen` (real VietQR + 3s polling + Sandbox)
+/// - Paid invoices display clean K80 Electronic Receipt modal with `BMS-HOADON|...` QR
 class PatientBillingTab extends StatefulWidget {
-  const PatientBillingTab({super.key});
+  final bool asStandaloneScreen;
+
+  const PatientBillingTab({super.key, this.asStandaloneScreen = false});
 
   @override
   State<PatientBillingTab> createState() => _PatientBillingTabState();
@@ -14,16 +20,23 @@ class PatientBillingTab extends StatefulWidget {
 
 class _PatientBillingTabState extends State<PatientBillingTab> {
   final PatientPortalApi _api = const PatientPortalApi();
+  final TextEditingController _searchCtrl = TextEditingController();
 
-  List<Map<String, dynamic>> _invoices = [];
   bool _loading = true;
   String? _error;
-  String _filter = 'all';
+  List<Map<String, dynamic>> _invoices = [];
+  String _statusFilter = 'ALL';
 
   @override
   void initState() {
     super.initState();
     _load();
+  }
+
+  @override
+  void dispose() {
+    _searchCtrl.dispose();
+    super.dispose();
   }
 
   Future<void> _load() async {
@@ -32,7 +45,7 @@ class _PatientBillingTabState extends State<PatientBillingTab> {
       _error = null;
     });
     try {
-      final list = await _api.getInvoices(page: 1, pageSize: 30);
+      final list = await _api.getMyBillingInvoices(page: 1, pageSize: 50);
       if (!mounted) return;
       setState(() {
         _invoices = list;
@@ -47,516 +60,388 @@ class _PatientBillingTabState extends State<PatientBillingTab> {
     }
   }
 
+  String _statusOf(Map<String, dynamic> inv) =>
+      (inv['status'] ?? inv['paymentStatus'] ?? '')
+          .toString()
+          .trim()
+          .toLowerCase();
+
+  /// Voided / refunded / cancelled invoices are closed: never payable, never "pending".
+  bool _isClosed(Map<String, dynamic> inv) {
+    final s = _statusOf(inv);
+    return s == 'voided' ||
+        s == 'refunded' ||
+        s == 'partiallyrefunded' ||
+        s == 'cancelled' ||
+        s == '3' ||
+        s == '4';
+  }
+
+  bool _isPaid(Map<String, dynamic> inv) {
+    if (_isClosed(inv)) return false;
+    final s = _statusOf(inv);
+    return s == 'paid' || s == '1' || s == 'completed' || inv['paidAt'] != null;
+  }
+
+  /// Only genuinely unpaid invoices can open SePay checkout / count as "Chờ thanh toán".
+  bool _isPayable(Map<String, dynamic> inv) => !_isPaid(inv) && !_isClosed(inv);
+
+  double _amountOf(Map<String, dynamic> inv) {
+    final raw =
+        inv['finalAmount'] ??
+        inv['totalAmount'] ??
+        inv['amount'] ??
+        inv['subTotal'] ??
+        0;
+    if (raw is num) return raw.toDouble();
+    return double.tryParse(raw.toString()) ?? 0;
+  }
+
+  String _packageNameOf(Map<String, dynamic> inv) {
+    final direct = (inv['packageName'] ?? inv['testName'] ?? '')
+        .toString()
+        .trim();
+    if (direct.isNotEmpty) return direct;
+    if (inv['items'] is List) {
+      for (final raw in inv['items'] as List) {
+        if (raw is Map) {
+          final name =
+              (raw['itemName'] ?? raw['serviceName'] ?? raw['name'] ?? '')
+                  .toString()
+                  .trim();
+          if (name.isNotEmpty) return name;
+        }
+      }
+    }
+    return '';
+  }
+
   List<Map<String, dynamic>> get _filtered {
+    final q = _searchCtrl.text.trim().toLowerCase();
     return _invoices.where((inv) {
-      final st = (inv['status'] ?? '').toString().toLowerCase();
-      if (_filter == 'unpaid') return st == 'unpaid';
-      if (_filter == 'paid') return st == 'paid';
+      if (_statusFilter == 'PAID' && !_isPaid(inv)) return false;
+      if (_statusFilter == 'UNPAID' && !_isPayable(inv)) return false;
+      if (q.isNotEmpty) {
+        final pkgName = _packageNameOf(inv);
+        final blob =
+            '${inv['invoiceCode'] ?? ''} ${inv['appointmentCode'] ?? ''} $pkgName ${inv['transactionReference'] ?? ''} ${inv['receiptNumber'] ?? ''} ${inv['id'] ?? ''}'
+                .toLowerCase();
+        if (!blob.contains(q)) return false;
+      }
       return true;
     }).toList();
   }
 
-  Future<void> _openInvoiceDetail(Map<String, dynamic> inv) async {
-    final paid = await showModalBottomSheet<bool>(
-      context: context,
-      isScrollControlled: true,
-      builder: (_) => _PatientInvoiceDetailSheet(api: _api, invoice: inv),
-    );
-    if (paid == true) {
-      _load();
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final visible = _filtered;
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      body: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 14, 16, 8),
-            child: Column(
-              children: [
-                BmsPageHeaderCard(
-                  icon: Icons.account_balance_wallet_outlined,
-                  title: 'Viện phí & Hóa đơn',
-                  subtitle:
-                      'Tra cứu chi tiết dịch vụ, khấu trừ BHYT và thanh toán chuyển khoản SePay',
-                  trailing: IconButton(
-                    onPressed: _load,
-                    tooltip: 'Làm mới',
-                    icon: const Icon(Icons.refresh_rounded),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                BmsSearchFilterBar(
-                  filterChips: [
-                    BmsFilterChipItem(
-                      key: 'all',
-                      label: 'Tất cả (${_invoices.length})',
-                      selected: _filter == 'all',
-                      onSelected: () => setState(() => _filter = 'all'),
-                    ),
-                    BmsFilterChipItem(
-                      key: 'unpaid',
-                      label: 'Chờ thanh toán',
-                      selected: _filter == 'unpaid',
-                      onSelected: () => setState(() => _filter = 'unpaid'),
-                    ),
-                    BmsFilterChipItem(
-                      key: 'paid',
-                      label: 'Đã thanh toán',
-                      selected: _filter == 'paid',
-                      onSelected: () => setState(() => _filter = 'paid'),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-          Expanded(
-            child: _loading
-                ? const BmsLoadingState(message: 'Đang tải sổ viện phí...')
-                : _error != null
-                ? Center(
-                    child: Padding(
-                      padding: const EdgeInsets.all(16),
-                      child: BmsErrorState(message: _error!, onRetry: _load),
-                    ),
-                  )
-                : visible.isEmpty
-                ? const Center(
-                    child: Padding(
-                      padding: EdgeInsets.all(16),
-                      child: BmsEmptyState(
-                        icon: Icons.receipt_long_outlined,
-                        title: 'Chưa có hóa đơn viện phí',
-                        subtitle:
-                            'Hóa đơn chỉ định xét nghiệm sẽ tự động cập nhật sau khi tiếp nhận khám.',
-                      ),
-                    ),
-                  )
-                : RefreshIndicator(
-                    onRefresh: _load,
-                    child: ListView.separated(
-                      padding: const EdgeInsets.fromLTRB(16, 6, 16, 28),
-                      itemCount: visible.length,
-                      separatorBuilder: (_, _) => const SizedBox(height: 10),
-                      itemBuilder: (context, idx) {
-                        final inv = visible[idx];
-                        final code =
-                            (inv['invoiceCode'] ?? inv['id'] ?? '').toString();
-                        final status = (inv['status'] ?? 'Unpaid').toString();
-                        final total = (inv['totalAmount'] as num?) ?? 0;
-                        final created = BmsFormatters.dateTime(
-                          inv['createdAt'] ?? inv['paidAt'],
-                        );
-                        final isUnpaid = status.toLowerCase() == 'unpaid';
-
-                        return BmsSoftCard(
-                          onTap: () => _openInvoiceDetail(inv),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
-                                mainAxisAlignment:
-                                    MainAxisAlignment.spaceBetween,
-                                children: [
-                                  Text(
-                                    code,
-                                    style: const TextStyle(
-                                      fontFamily: 'monospace',
-                                      fontSize: 12.5,
-                                      fontWeight: FontWeight.w800,
-                                      color: AppColors.primary,
-                                    ),
-                                  ),
-                                  BmsStatusPill(status: status),
-                                ],
-                              ),
-                              const SizedBox(height: 10),
-                              Row(
-                                mainAxisAlignment:
-                                    MainAxisAlignment.spaceBetween,
-                                children: [
-                                  Text(
-                                    created,
-                                    style: const TextStyle(
-                                      fontSize: 12.5,
-                                      color: AppColors.textSecondary,
-                                    ),
-                                  ),
-                                  Text(
-                                    BmsFormatters.currency(total),
-                                    style: const TextStyle(
-                                      fontSize: 17,
-                                      fontWeight: FontWeight.w800,
-                                      color: AppColors.textPrimary,
-                                      fontFeatures: [
-                                        FontFeature.tabularFigures(),
-                                      ],
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              if (isUnpaid) ...[
-                                const SizedBox(height: 12),
-                                SizedBox(
-                                  width: double.infinity,
-                                  child: FilledButton.icon(
-                                    onPressed: () => _openInvoiceDetail(inv),
-                                    icon: const Icon(
-                                      Icons.qr_code_rounded,
-                                      size: 18,
-                                    ),
-                                    label: const Text('Thanh toán trực tuyến'),
-                                  ),
-                                ),
-                              ],
-                            ],
-                          ),
-                        );
-                      },
-                    ),
-                  ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _PatientInvoiceDetailSheet extends StatefulWidget {
-  final PatientPortalApi api;
-  final Map<String, dynamic> invoice;
-
-  const _PatientInvoiceDetailSheet({
-    required this.api,
-    required this.invoice,
-  });
-
-  @override
-  State<_PatientInvoiceDetailSheet> createState() =>
-      _PatientInvoiceDetailSheetState();
-}
-
-class _PatientInvoiceDetailSheetState
-    extends State<_PatientInvoiceDetailSheet> {
-  Map<String, dynamic>? _checkout;
-  Map<String, dynamic>? _sePayCheckout;
-  String? _sePayNotice;
-  bool _loading = true;
-  bool _paying = false;
-
-  String get _invoiceId =>
-      (widget.invoice['id'] ?? widget.invoice['invoiceId'] ?? '').toString();
-
-  @override
-  void initState() {
-    super.initState();
-    _loadDetails();
-  }
-
-  Future<void> _loadDetails() async {
-    final apptId = (widget.invoice['appointmentId'] ?? '').toString();
-    try {
-      final summary = await widget.api.getCheckoutSummary(_invoiceId);
-      Map<String, dynamic>? sePayData;
-      String? sePayMsg;
-      if (apptId.isNotEmpty) {
-        final sePayRes = await widget.api.getSePayCheckout(apptId);
-        sePayData = sePayRes.checkout;
-        sePayMsg = sePayRes.unavailableReason;
-      }
-      if (!mounted) return;
-      setState(() {
-        _checkout = summary;
-        _sePayCheckout = sePayData;
-        _sePayNotice = sePayMsg;
-        _loading = false;
-      });
-    } catch (_) {
-      if (!mounted) return;
-      setState(() => _loading = false);
-    }
-  }
-
-  Future<void> _confirmSePayPayment() async {
-    setState(() => _paying = true);
-    try {
-      await widget.api.processSePayPayment(_invoiceId);
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Đã ghi nhận thanh toán hóa đơn thành công.'),
-          backgroundColor: AppColors.success,
-        ),
-      );
-      Navigator.pop(context, true);
-    } catch (e) {
-      if (!mounted) return;
-      setState(() => _paying = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(e.toString()),
-          backgroundColor: AppColors.danger,
-        ),
-      );
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final inv = _checkout ?? widget.invoice;
-    final code = (inv['invoiceCode'] ?? _invoiceId).toString();
-    final status = (inv['status'] ?? widget.invoice['status'] ?? 'Unpaid')
-        .toString();
-    final isUnpaid = status.toLowerCase() == 'unpaid';
-    final subTotal = (inv['subTotal'] as num?) ?? 0;
-    final bhytDeduction =
-        (widget.invoice['insuranceDeduction'] as num?) ??
-        (inv['insuranceDeduction'] as num?) ??
-        0;
-    final discount = (inv['discountAmount'] as num?) ?? 0;
-    final total = (inv['totalAmount'] as num?) ?? 0;
-    final txRef =
-        (inv['transactionReference'] ??
-                widget.invoice['transactionReference'] ??
-                '')
-            .toString();
-    final rawItems = inv['items'] is List
+  void _showReceiptSheet(Map<String, dynamic> inv) {
+    final code = (inv['invoiceCode'] ?? inv['id'] ?? '').toString();
+    final total = _amountOf(inv);
+    final apptCode = (inv['appointmentCode'] ?? '').toString().trim();
+    final txRef = (inv['transactionReference'] ?? inv['receiptNumber'] ?? '')
+        .toString()
+        .trim();
+    final items = inv['items'] is List
         ? (inv['items'] as List)
               .whereType<Map>()
               .map((e) => Map<String, dynamic>.from(e))
               .toList()
-        : <Map<String, dynamic>>[];
+        : const <Map<String, dynamic>>[];
 
-    final qrPayload =
-        (_sePayCheckout?['qrUrl'] ??
-                _sePayCheckout?['qrData'] ??
-                inv['qrCodePayload'] ??
-                '')
-            .toString();
-
-    return DraggableScrollableSheet(
-      initialChildSize: 0.82,
-      minChildSize: 0.55,
-      maxChildSize: 0.94,
-      expand: false,
-      builder: (context, scrollCtrl) {
-        return ListView(
-          controller: scrollCtrl,
-          padding: const EdgeInsets.fromLTRB(20, 14, 20, 28),
-          children: [
-            Center(
-              child: Container(
-                width: 42,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: AppColors.border,
-                  borderRadius: BorderRadius.circular(999),
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      builder: (_) => Padding(
+        padding: const EdgeInsets.all(20),
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text(
+                'BIÊN LAI VIỆN PHÍ ĐIỆN TỬ',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
+              ),
+              const Text(
+                'Trung tâm Xét nghiệm Y khoa BMS MedLab',
+                style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+              ),
+              const Divider(height: 22),
+              BmsInfoRow(
+                label: 'Mã hóa đơn',
+                value: code,
+                isMono: true,
+                isBold: true,
+              ),
+              if (apptCode.isNotEmpty)
+                BmsInfoRow(label: 'Mã lịch hẹn', value: apptCode, isMono: true),
+              if (txRef.isNotEmpty)
+                BmsInfoRow(label: 'Mã giao dịch', value: txRef, isMono: true),
+              BmsInfoRow(
+                label: 'Ngày thanh toán',
+                value: BmsFormatters.dateTime(
+                  inv['paidAt'] ?? inv['createdAt'],
                 ),
               ),
-            ),
-            const SizedBox(height: 14),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Text(
-                  'Chi tiết hóa đơn viện phí',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w800,
-                    color: AppColors.textPrimary,
-                  ),
+              BmsInfoRow(
+                label: 'Phương thức',
+                value: BmsFormatters.paymentMethodVi(
+                  (inv['paymentMethod'] ?? 'SePay').toString(),
                 ),
-                BmsStatusPill(status: status),
+              ),
+              if (items.isNotEmpty) ...[
+                const Divider(height: 18),
+                ...items.map((it) {
+                  final itemLabel =
+                      (it['itemName'] ??
+                              it['serviceName'] ??
+                              it['name'] ??
+                              'Dịch vụ xét nghiệm')
+                          .toString();
+                  final rawPrice =
+                      it['totalPrice'] ?? it['unitPrice'] ?? it['price'] ?? 0;
+                  final price = rawPrice is num
+                      ? rawPrice
+                      : (num.tryParse(rawPrice.toString()) ?? 0);
+                  return BmsInfoRow(
+                    label: itemLabel,
+                    value: BmsFormatters.currency(price),
+                  );
+                }),
               ],
-            ),
-            const SizedBox(height: 14),
-            if (_loading)
-              const BmsLoadingState(message: 'Đang tải bảng kê dịch vụ...')
-            else ...[
-              BmsSoftCard(
-                backgroundColor: AppColors.surfaceSoft,
-                child: Column(
-                  children: [
-                    BmsInfoRow(
-                      label: 'Mã hóa đơn',
-                      value: code,
-                      isMono: true,
-                      isBold: true,
-                    ),
-                    BmsInfoRow(
-                      label: 'Hình thức thu',
-                      value: BmsFormatters.paymentMethodVi(
-                        inv['paymentMethod']?.toString(),
-                      ),
-                    ),
-                    if (txRef.isNotEmpty)
-                      BmsInfoRow(
-                        label: 'Mã biên nhận / GD',
-                        value: txRef,
-                        isMono: true,
-                      ),
-                  ],
+              const Divider(height: 18),
+              BmsInfoRow(
+                label: 'Tổng cộng đã thu',
+                value: BmsFormatters.currency(total),
+                isBold: true,
+                valueColor: AppColors.successText,
+              ),
+              const SizedBox(height: 14),
+              QrImageView(
+                data: 'BMS-HOADON|$code|${total.round()}',
+                size: 140,
+                backgroundColor: Colors.white,
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                'Chứng từ điện tử đối soát trực tiếp trên hệ thống BMS',
+                style: TextStyle(
+                  fontSize: 11.5,
+                  color: AppColors.textSecondary,
                 ),
               ),
               const SizedBox(height: 14),
-              const BmsSectionHeader(title: 'Danh mục xét nghiệm'),
-              const SizedBox(height: 8),
-              BmsSoftCard(
-                child: rawItems.isEmpty
-                    ? const Text(
-                        'Gói xét nghiệm lâm sàng theo phiếu chỉ định.',
-                        style: TextStyle(
-                          fontSize: 13,
-                          color: AppColors.textSecondary,
-                        ),
-                      )
-                    : Column(
-                        children: rawItems.map((it) {
-                          final name =
-                              (it['itemName'] ??
-                                      it['packageName'] ??
-                                      it['itemCode'] ??
-                                      'Dịch vụ xét nghiệm')
-                                  .toString();
-                          final qty = (it['quantity'] as num?)?.toInt() ?? 1;
-                          final price =
-                              (it['totalPrice'] ?? it['unitPrice'] ?? 0)
-                                  as num;
-                          return Padding(
-                            padding: const EdgeInsets.symmetric(vertical: 6),
-                            child: Row(
-                              children: [
-                                Expanded(
-                                  child: Text(
-                                    '$name (x$qty)',
-                                    style: const TextStyle(
-                                      fontSize: 13.5,
-                                      fontWeight: FontWeight.w600,
-                                      color: AppColors.textPrimary,
-                                    ),
-                                  ),
-                                ),
-                                Text(
-                                  BmsFormatters.currency(price),
-                                  style: const TextStyle(
-                                    fontSize: 13.5,
-                                    fontWeight: FontWeight.w700,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          );
-                        }).toList(),
-                      ),
-              ),
-              const SizedBox(height: 12),
-              BmsSoftCard(
-                child: Column(
-                  children: [
-                    BmsInfoRow(
-                      label: 'Tạm tính dịch vụ',
-                      value: BmsFormatters.currency(subTotal),
-                    ),
-                    if (bhytDeduction > 0)
-                      BmsInfoRow(
-                        label: 'Quỹ BHYT chi trả',
-                        value: '-${BmsFormatters.currency(bhytDeduction)}',
-                        valueColor: AppColors.successText,
-                      ),
-                    if (discount > 0)
-                      BmsInfoRow(
-                        label: 'Ưu đãi / Giảm trừ',
-                        value: '-${BmsFormatters.currency(discount)}',
-                        valueColor: AppColors.successText,
-                      ),
-                    const Padding(
-                      padding: EdgeInsets.symmetric(vertical: 8),
-                      child: Divider(),
-                    ),
-                    BmsInfoRow(
-                      label: 'Thực thu bệnh nhân',
-                      value: BmsFormatters.currency(total),
-                      isBold: true,
-                      valueColor: AppColors.primary,
-                    ),
-                  ],
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  child: const Text('Đóng biên lai'),
                 ),
               ),
-              if (isUnpaid) ...[
-                const SizedBox(height: 16),
-                if (qrPayload.isNotEmpty && !qrPayload.startsWith('http'))
-                  Center(
-                    child: Container(
-                      padding: const EdgeInsets.all(14),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(18),
-                        border: Border.all(color: AppColors.cardBorder),
-                      ),
-                      child: QrImageView(
-                        data: qrPayload,
-                        size: 165,
-                        backgroundColor: Colors.white,
-                      ),
-                    ),
-                  ),
-                if (_sePayNotice != null) ...[
-                  const SizedBox(height: 10),
-                  BmsSoftCard(
-                    backgroundColor: AppColors.warningLight,
-                    borderColor: AppColors.warningBorder,
-                    padding: const EdgeInsets.all(12),
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Icon(
-                          Icons.info_outline_rounded,
-                          size: 18,
-                          color: AppColors.warningText,
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            _sePayNotice!,
-                            style: const TextStyle(
-                              fontSize: 12.5,
-                              color: AppColors.warningText,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-                const SizedBox(height: 16),
-                FilledButton.icon(
-                  onPressed: _paying ? null : _confirmSePayPayment,
-                  icon: _paying
-                      ? const SizedBox(
-                          width: 18,
-                          height: 18,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: Colors.white,
-                          ),
-                        )
-                      : const Icon(Icons.verified_outlined, size: 19),
-                  label: Text(
-                    _paying
-                        ? 'Đang xác thực thanh toán...'
-                        : 'Xác nhận thanh toán SePay (${BmsFormatters.currency(total)})',
-                  ),
-                ),
-              ],
             ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final totalPaid = _invoices
+        .where(_isPaid)
+        .fold<double>(0, (sum, i) => sum + _amountOf(i));
+    final totalUnpaid = _invoices
+        .where(_isPayable)
+        .fold<double>(0, (sum, i) => sum + _amountOf(i));
+
+    final body = RefreshIndicator(
+      onRefresh: _load,
+      child: ListView(
+        padding: const EdgeInsets.all(16),
+        children: [
+          const BmsPageHeaderCard(
+            icon: Icons.receipt_long_outlined,
+            badgeText: 'VIỆN PHÍ & VIETQR SEPAY',
+            title: 'Thanh toán & Hóa đơn',
+            subtitle: 'Quản lý lịch sử viện phí và thanh toán VietQR tự động',
+          ),
+          const SizedBox(height: 12),
+          BmsKpiGrid(
+            cards: [
+              BmsKpiCard(
+                label: 'Đã thanh toán',
+                value: BmsFormatters.currency(totalPaid),
+                icon: Icons.check_circle_outline_rounded,
+                accentColor: AppColors.success,
+              ),
+              BmsKpiCard(
+                label: 'Chờ thanh toán',
+                value: BmsFormatters.currency(totalUnpaid),
+                icon: Icons.pending_actions_rounded,
+                accentColor: AppColors.warning,
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          BmsSearchFilterBar(
+            controller: _searchCtrl,
+            hintText: 'Tìm mã hóa đơn, mã lịch hẹn...',
+            onChanged: (_) => setState(() {}),
+            filterChips: [
+              BmsFilterChipItem(
+                key: 'ALL',
+                label: 'Tất cả (${_invoices.length})',
+                selected: _statusFilter == 'ALL',
+                onSelected: () => setState(() => _statusFilter = 'ALL'),
+              ),
+              BmsFilterChipItem(
+                key: 'UNPAID',
+                label: 'Chờ thanh toán',
+                selected: _statusFilter == 'UNPAID',
+                onSelected: () => setState(() => _statusFilter = 'UNPAID'),
+              ),
+              BmsFilterChipItem(
+                key: 'PAID',
+                label: 'Đã thanh toán',
+                selected: _statusFilter == 'PAID',
+                onSelected: () => setState(() => _statusFilter = 'PAID'),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          if (_loading)
+            const BmsLoadingState(message: 'Đang tải danh sách hóa đơn...')
+          else if (_error != null)
+            BmsErrorState(message: _error!, onRetry: _load)
+          else if (_filtered.isEmpty)
+            const BmsEmptyState(
+              icon: Icons.receipt_outlined,
+              title: 'Chưa có hóa đơn viện phí',
+              subtitle:
+                  'Hóa đơn sẽ được tự động khởi tạo khi bạn đặt lịch xét nghiệm.',
+            )
+          else
+            ..._filtered.map(_buildInvoiceCard),
+          const SizedBox(height: 24),
+        ],
+      ),
+    );
+
+    if (widget.asStandaloneScreen) {
+      return Scaffold(
+        backgroundColor: AppColors.background,
+        appBar: AppBar(title: const Text('Viện phí & Thanh toán')),
+        body: SafeArea(child: body),
+      );
+    }
+    return body;
+  }
+
+  Widget _buildInvoiceCard(Map<String, dynamic> inv) {
+    final paid = _isPaid(inv);
+    final closed = _isClosed(inv);
+    final code = (inv['invoiceCode'] ?? inv['id'] ?? '').toString();
+    final apptId = (inv['appointmentId'] ?? '').toString();
+    final apptCode = (inv['appointmentCode'] ?? '').toString().trim();
+    final pkgName = _packageNameOf(inv);
+    final amount = _amountOf(inv);
+
+    return BmsSoftCard(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(15),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  code,
+                  style: const TextStyle(
+                    fontSize: 14.5,
+                    fontWeight: FontWeight.w800,
+                    fontFamily: 'monospace',
+                    color: AppColors.primary,
+                  ),
+                ),
+              ),
+              BmsStatusPill(
+                status: paid
+                    ? 'Paid'
+                    : closed
+                    ? (_statusOf(inv).contains('refund')
+                          ? 'Refunded'
+                          : 'Cancelled')
+                    : 'Unpaid',
+              ),
+            ],
+          ),
+          if (pkgName.isNotEmpty) ...[
+            const SizedBox(height: 6),
+            Text(
+              pkgName,
+              style: const TextStyle(
+                fontSize: 14.5,
+                fontWeight: FontWeight.w700,
+                color: AppColors.textPrimary,
+              ),
+            ),
           ],
-        );
-      },
+          const SizedBox(height: 6),
+          if (apptCode.isNotEmpty)
+            BmsInfoRow(label: 'Mã lịch hẹn', value: apptCode, isMono: true),
+          BmsInfoRow(
+            label: paid ? 'Ngày thanh toán' : 'Ngày tạo',
+            value: BmsFormatters.dateTime(
+              paid ? (inv['paidAt'] ?? inv['createdAt']) : inv['createdAt'],
+            ),
+          ),
+          if (paid && (inv['paymentMethod'] ?? '').toString().isNotEmpty)
+            BmsInfoRow(
+              label: 'Phương thức',
+              value: BmsFormatters.paymentMethodVi(
+                inv['paymentMethod'].toString(),
+              ),
+            ),
+          BmsInfoRow(
+            label: 'Tổng thanh toán',
+            value: BmsFormatters.currency(amount),
+            isBold: true,
+            valueColor: paid ? AppColors.successText : AppColors.primary,
+          ),
+          const SizedBox(height: 10),
+          if (!closed)
+            SizedBox(
+              width: double.infinity,
+              child: paid
+                  ? OutlinedButton.icon(
+                      onPressed: () => _showReceiptSheet(inv),
+                      icon: const Icon(Icons.receipt_rounded, size: 18),
+                      label: const Text('Xem biên lai điện tử (QR)'),
+                    )
+                  : FilledButton.icon(
+                      onPressed: apptId.isEmpty
+                          ? null
+                          : () async {
+                              final ok = await Navigator.of(context).push<bool>(
+                                MaterialPageRoute(
+                                  builder: (_) => SePayCheckoutScreen(
+                                    appointmentId: apptId,
+                                    appointmentCode: apptCode.isNotEmpty
+                                        ? apptCode
+                                        : null,
+                                    packageName: pkgName.isNotEmpty
+                                        ? pkgName
+                                        : null,
+                                  ),
+                                ),
+                              );
+                              if (ok == true) _load();
+                            },
+                      icon: const Icon(Icons.qr_code_2_rounded, size: 18),
+                      label: const Text('Thanh toán VietQR SePay'),
+                    ),
+            ),
+        ],
+      ),
     );
   }
 }

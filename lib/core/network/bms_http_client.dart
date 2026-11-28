@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
@@ -20,6 +21,23 @@ class BmsApiResponse {
   Map<String, dynamic> get bodyAsMap =>
       body is Map<String, dynamic> ? body as Map<String, dynamic> : {};
 
+  List<dynamic> get bodyAsList {
+    if (body is List) return body as List<dynamic>;
+    if (body is Map<String, dynamic>) {
+      final map = body as Map<String, dynamic>;
+      for (final key in const ['data', 'items', 'results', 'records', 'shifts']) {
+        if (map[key] is List) return map[key] as List<dynamic>;
+      }
+      if (map['data'] is Map<String, dynamic>) {
+        final inner = map['data'] as Map<String, dynamic>;
+        for (final key in const ['items', 'results', 'records', 'data']) {
+          if (inner[key] is List) return inner[key] as List<dynamic>;
+        }
+      }
+    }
+    return const [];
+  }
+
   dynamic get data {
     if (body is Map<String, dynamic>) {
       final map = body as Map<String, dynamic>;
@@ -40,7 +58,11 @@ class BmsApiResponse {
         if (errs.isNotEmpty) return errs.join(' ');
       }
       final candidate =
-          map['message'] ?? map['detail'] ?? map['title'] ?? map['error'];
+          map['message'] ??
+          map['Message'] ??
+          map['detail'] ??
+          map['title'] ??
+          map['error'];
       if (candidate != null && candidate.toString().trim().isNotEmpty) {
         return candidate.toString().trim();
       }
@@ -64,7 +86,10 @@ class BmsApiException implements Exception {
   String toString() => message;
 }
 
-/// Platform-aware HTTP client communicating exclusively with the real .NET 9 BMS API.
+/// Unified platform-aware HTTP client for the BMS .NET 10 Backend API.
+/// Supports both `/api/...` routes and host-root routes (e.g., `/TestOrder/feedback/...`),
+/// automatic host resolution (10.0.2.2 on Android Emulator, localhost on Web/Desktop),
+/// and transparent 401 JWT refresh token rotation matching `bms-web-frontend/src/config/api.js`.
 class BmsHttpClient {
   static const String _envApiBaseUrl = String.fromEnvironment('API_BASE_URL');
   static const String _envBmsBaseUrl = String.fromEnvironment(
@@ -72,8 +97,9 @@ class BmsHttpClient {
   );
 
   static String? _cachedBaseUrl;
+  static Completer<bool>? _refreshCompleter;
 
-  /// Returns ordered candidate base URLs according to runtime platform.
+  /// Returns ordered candidate root host URLs (without trailing `/api`).
   static List<String> get candidateBaseUrls {
     if (_envApiBaseUrl.isNotEmpty) {
       return [_stripTrailingSlash(_envApiBaseUrl)];
@@ -90,7 +116,7 @@ class BmsHttpClient {
     return _platformDefaultCandidates;
   }
 
-  /// Active resolved base URL for synchronous consumers.
+  /// Active resolved root URL (e.g. `http://localhost:5000` or `http://10.0.2.2:5000`).
   static String get resolvedBaseUrl => candidateBaseUrls.first;
 
   static List<String> get _platformDefaultCandidates {
@@ -149,7 +175,7 @@ class BmsHttpClient {
     bool includeAuth = true,
     Duration timeout = const Duration(seconds: 15),
   }) {
-    return _send(
+    return _sendWithRefresh(
       method: 'GET',
       path: path,
       query: query,
@@ -165,7 +191,7 @@ class BmsHttpClient {
     bool includeAuth = true,
     Duration timeout = const Duration(seconds: 15),
   }) {
-    return _send(
+    return _sendWithRefresh(
       method: 'POST',
       path: path,
       body: body,
@@ -182,7 +208,7 @@ class BmsHttpClient {
     bool includeAuth = true,
     Duration timeout = const Duration(seconds: 15),
   }) {
-    return _send(
+    return _sendWithRefresh(
       method: 'PUT',
       path: path,
       body: body,
@@ -199,7 +225,7 @@ class BmsHttpClient {
     bool includeAuth = true,
     Duration timeout = const Duration(seconds: 15),
   }) {
-    return _send(
+    return _sendWithRefresh(
       method: 'PATCH',
       path: path,
       body: body,
@@ -216,7 +242,7 @@ class BmsHttpClient {
     bool includeAuth = true,
     Duration timeout = const Duration(seconds: 15),
   }) {
-    return _send(
+    return _sendWithRefresh(
       method: 'DELETE',
       path: path,
       body: body,
@@ -224,6 +250,68 @@ class BmsHttpClient {
       includeAuth: includeAuth,
       timeout: timeout,
     );
+  }
+
+  Future<BmsApiResponse> _sendWithRefresh({
+    required String method,
+    required String path,
+    Object? body,
+    Map<String, String>? query,
+    bool includeAuth = true,
+    Duration timeout = const Duration(seconds: 15),
+  }) async {
+    final firstResponse = await _send(
+      method: method,
+      path: path,
+      body: body,
+      query: query,
+      includeAuth: includeAuth,
+      timeout: timeout,
+    );
+
+    final lowerPath = path.toLowerCase();
+    final isAuthEndpoint =
+        lowerPath.contains('/auth/login') ||
+        lowerPath.contains('/auth/refresh') ||
+        lowerPath.contains('/auth/logout');
+
+    if (firstResponse.statusCode == 401 && includeAuth && !isAuthEndpoint) {
+      final refreshed = await _coalescedRefresh();
+      if (refreshed) {
+        return _send(
+          method: method,
+          path: path,
+          body: body,
+          query: query,
+          includeAuth: includeAuth,
+          timeout: timeout,
+        );
+      }
+      await BmsAuth.logout(client: _injectedClient);
+      BmsAuth.onSessionExpired?.call();
+    }
+
+    return firstResponse;
+  }
+
+  Future<bool> _coalescedRefresh() async {
+    if (_refreshCompleter != null) {
+      return _refreshCompleter!.future;
+    }
+    final completer = Completer<bool>();
+    _refreshCompleter = completer;
+    try {
+      final ok = await BmsAuth.tryRefreshCurrentSession(
+        client: _injectedClient,
+      );
+      if (!completer.isCompleted) completer.complete(ok);
+      return ok;
+    } catch (_) {
+      if (!completer.isCompleted) completer.complete(false);
+      return false;
+    } finally {
+      _refreshCompleter = null;
+    }
   }
 
   Future<BmsApiResponse> _send({

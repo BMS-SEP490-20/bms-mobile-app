@@ -84,10 +84,13 @@ class _PatientNotificationsScreenState
                 'source': 'user',
                 'title': (m['title'] ?? 'Thông báo hệ thống').toString(),
                 'message': (m['message'] ?? m['body'] ?? '').toString(),
-                'createdAt': (m['createdAt'] ?? m['sentAt'] ?? '').toString(),
+                'createdAt':
+                    (m['createdAt'] ?? m['dispatchedAt'] ?? m['sentAt'] ?? '')
+                        .toString(),
                 'isRead':
                     m['isRead'] == true ||
-                    (m['status'] ?? '').toString().toLowerCase() == 'read',
+                    m['readAt'] != null ||
+                    (m['status'] ?? '').toString().toUpperCase() == 'READ',
                 'isPanic':
                     (m['priority'] ?? '').toString().toLowerCase() ==
                     'critical',
