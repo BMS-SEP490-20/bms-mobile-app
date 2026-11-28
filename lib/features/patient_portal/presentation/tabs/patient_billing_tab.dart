@@ -60,17 +60,31 @@ class _PatientBillingTabState extends State<PatientBillingTab> {
     }
   }
 
-  bool _isPaid(Map<String, dynamic> inv) {
-    final s = (inv['status'] ?? inv['paymentStatus'] ?? '')
-        .toString()
-        .trim()
-        .toLowerCase();
-    if (s == 'voided' || s == 'refunded' || s == 'cancelled') return false;
-    return s == 'paid' ||
-        s == '1' ||
-        s == 'completed' ||
-        inv['paidAt'] != null;
+  String _statusOf(Map<String, dynamic> inv) =>
+      (inv['status'] ?? inv['paymentStatus'] ?? '')
+          .toString()
+          .trim()
+          .toLowerCase();
+
+  /// Voided / refunded / cancelled invoices are closed: never payable, never "pending".
+  bool _isClosed(Map<String, dynamic> inv) {
+    final s = _statusOf(inv);
+    return s == 'voided' ||
+        s == 'refunded' ||
+        s == 'partiallyrefunded' ||
+        s == 'cancelled' ||
+        s == '3' ||
+        s == '4';
   }
+
+  bool _isPaid(Map<String, dynamic> inv) {
+    if (_isClosed(inv)) return false;
+    final s = _statusOf(inv);
+    return s == 'paid' || s == '1' || s == 'completed' || inv['paidAt'] != null;
+  }
+
+  /// Only genuinely unpaid invoices can open SePay checkout / count as "Chờ thanh toán".
+  bool _isPayable(Map<String, dynamic> inv) => !_isPaid(inv) && !_isClosed(inv);
 
   double _amountOf(Map<String, dynamic> inv) {
     final raw =
@@ -106,7 +120,7 @@ class _PatientBillingTabState extends State<PatientBillingTab> {
     final q = _searchCtrl.text.trim().toLowerCase();
     return _invoices.where((inv) {
       if (_statusFilter == 'PAID' && !_isPaid(inv)) return false;
-      if (_statusFilter == 'UNPAID' && _isPaid(inv)) return false;
+      if (_statusFilter == 'UNPAID' && !_isPayable(inv)) return false;
       if (q.isNotEmpty) {
         final pkgName = _packageNameOf(inv);
         final blob =
@@ -122,10 +136,9 @@ class _PatientBillingTabState extends State<PatientBillingTab> {
     final code = (inv['invoiceCode'] ?? inv['id'] ?? '').toString();
     final total = _amountOf(inv);
     final apptCode = (inv['appointmentCode'] ?? '').toString().trim();
-    final txRef =
-        (inv['transactionReference'] ?? inv['receiptNumber'] ?? '')
-            .toString()
-            .trim();
+    final txRef = (inv['transactionReference'] ?? inv['receiptNumber'] ?? '')
+        .toString()
+        .trim();
     final items = inv['items'] is List
         ? (inv['items'] as List)
               .whereType<Map>()
@@ -159,20 +172,14 @@ class _PatientBillingTabState extends State<PatientBillingTab> {
                 isBold: true,
               ),
               if (apptCode.isNotEmpty)
-                BmsInfoRow(
-                  label: 'Mã lịch hẹn',
-                  value: apptCode,
-                  isMono: true,
-                ),
+                BmsInfoRow(label: 'Mã lịch hẹn', value: apptCode, isMono: true),
               if (txRef.isNotEmpty)
-                BmsInfoRow(
-                  label: 'Mã giao dịch',
-                  value: txRef,
-                  isMono: true,
-                ),
+                BmsInfoRow(label: 'Mã giao dịch', value: txRef, isMono: true),
               BmsInfoRow(
                 label: 'Ngày thanh toán',
-                value: BmsFormatters.dateTime(inv['paidAt'] ?? inv['createdAt']),
+                value: BmsFormatters.dateTime(
+                  inv['paidAt'] ?? inv['createdAt'],
+                ),
               ),
               BmsInfoRow(
                 label: 'Phương thức',
@@ -216,7 +223,10 @@ class _PatientBillingTabState extends State<PatientBillingTab> {
               const SizedBox(height: 8),
               const Text(
                 'Chứng từ điện tử đối soát trực tiếp trên hệ thống BMS',
-                style: TextStyle(fontSize: 11.5, color: AppColors.textSecondary),
+                style: TextStyle(
+                  fontSize: 11.5,
+                  color: AppColors.textSecondary,
+                ),
               ),
               const SizedBox(height: 14),
               SizedBox(
@@ -239,7 +249,7 @@ class _PatientBillingTabState extends State<PatientBillingTab> {
         .where(_isPaid)
         .fold<double>(0, (sum, i) => sum + _amountOf(i));
     final totalUnpaid = _invoices
-        .where((i) => !_isPaid(i))
+        .where(_isPayable)
         .fold<double>(0, (sum, i) => sum + _amountOf(i));
 
     final body = RefreshIndicator(
@@ -327,6 +337,7 @@ class _PatientBillingTabState extends State<PatientBillingTab> {
 
   Widget _buildInvoiceCard(Map<String, dynamic> inv) {
     final paid = _isPaid(inv);
+    final closed = _isClosed(inv);
     final code = (inv['invoiceCode'] ?? inv['id'] ?? '').toString();
     final apptId = (inv['appointmentId'] ?? '').toString();
     final apptCode = (inv['appointmentCode'] ?? '').toString().trim();
@@ -352,7 +363,15 @@ class _PatientBillingTabState extends State<PatientBillingTab> {
                   ),
                 ),
               ),
-              BmsStatusPill(status: paid ? 'Paid' : 'Unpaid'),
+              BmsStatusPill(
+                status: paid
+                    ? 'Paid'
+                    : closed
+                    ? (_statusOf(inv).contains('refund')
+                          ? 'Refunded'
+                          : 'Cancelled')
+                    : 'Unpaid',
+              ),
             ],
           ),
           if (pkgName.isNotEmpty) ...[
@@ -368,11 +387,7 @@ class _PatientBillingTabState extends State<PatientBillingTab> {
           ],
           const SizedBox(height: 6),
           if (apptCode.isNotEmpty)
-            BmsInfoRow(
-              label: 'Mã lịch hẹn',
-              value: apptCode,
-              isMono: true,
-            ),
+            BmsInfoRow(label: 'Mã lịch hẹn', value: apptCode, isMono: true),
           BmsInfoRow(
             label: paid ? 'Ngày thanh toán' : 'Ngày tạo',
             value: BmsFormatters.dateTime(
@@ -393,37 +408,38 @@ class _PatientBillingTabState extends State<PatientBillingTab> {
             valueColor: paid ? AppColors.successText : AppColors.primary,
           ),
           const SizedBox(height: 10),
-          SizedBox(
-            width: double.infinity,
-            child: paid
-                ? OutlinedButton.icon(
-                    onPressed: () => _showReceiptSheet(inv),
-                    icon: const Icon(Icons.receipt_rounded, size: 18),
-                    label: const Text('Xem biên lai điện tử (QR)'),
-                  )
-                : FilledButton.icon(
-                    onPressed: apptId.isEmpty
-                        ? null
-                        : () async {
-                            final ok = await Navigator.of(context).push<bool>(
-                              MaterialPageRoute(
-                                builder: (_) => SePayCheckoutScreen(
-                                  appointmentId: apptId,
-                                  appointmentCode: apptCode.isNotEmpty
-                                      ? apptCode
-                                      : null,
-                                  packageName: pkgName.isNotEmpty
-                                      ? pkgName
-                                      : null,
+          if (!closed)
+            SizedBox(
+              width: double.infinity,
+              child: paid
+                  ? OutlinedButton.icon(
+                      onPressed: () => _showReceiptSheet(inv),
+                      icon: const Icon(Icons.receipt_rounded, size: 18),
+                      label: const Text('Xem biên lai điện tử (QR)'),
+                    )
+                  : FilledButton.icon(
+                      onPressed: apptId.isEmpty
+                          ? null
+                          : () async {
+                              final ok = await Navigator.of(context).push<bool>(
+                                MaterialPageRoute(
+                                  builder: (_) => SePayCheckoutScreen(
+                                    appointmentId: apptId,
+                                    appointmentCode: apptCode.isNotEmpty
+                                        ? apptCode
+                                        : null,
+                                    packageName: pkgName.isNotEmpty
+                                        ? pkgName
+                                        : null,
+                                  ),
                                 ),
-                              ),
-                            );
-                            if (ok == true) _load();
-                          },
-                    icon: const Icon(Icons.qr_code_2_rounded, size: 18),
-                    label: const Text('Thanh toán VietQR SePay'),
-                  ),
-          ),
+                              );
+                              if (ok == true) _load();
+                            },
+                      icon: const Icon(Icons.qr_code_2_rounded, size: 18),
+                      label: const Text('Thanh toán VietQR SePay'),
+                    ),
+            ),
         ],
       ),
     );
