@@ -60,7 +60,6 @@ class TestResultNotificationRepository {
           break;
         }
       } catch (_) {
-        // Fallback to next host
       }
     }
 
@@ -89,7 +88,6 @@ class TestResultNotificationRepository {
           }
         }
       } catch (_) {
-        // Continue fallback
       }
     }
     return 0;
@@ -118,7 +116,6 @@ class TestResultNotificationRepository {
           break;
         }
       } catch (_) {
-        // Continue
       }
     }
     if (lastApiError != null) {

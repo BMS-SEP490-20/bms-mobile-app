@@ -44,7 +44,6 @@ class PaymentCheckoutModel {
   });
 
   factory PaymentCheckoutModel.fromJson(Map<String, dynamic> json) {
-    // Extract primary item name if present
     String resolvedPackage = 'Clinical Laboratory Services';
     if (json['items'] is List && (json['items'] as List).isNotEmpty) {
       final first = (json['items'] as List).first;

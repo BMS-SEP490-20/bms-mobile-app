@@ -23,13 +23,11 @@ class _ReceptionBillingTabState extends State<ReceptionBillingTab> {
 
   int _subTab = 0;
 
-  // Invoices state
   List<Map<String, dynamic>> _invoices = [];
   String _invoiceStatus = '';
   bool _loadingInvoices = true;
   String? _invoiceError;
 
-  // BHYT Calculator state
   List<Map<String, dynamic>> _packages = [];
   final Set<String> _selectedPackageIds = {};
   final TextEditingController _bhytCtrl = TextEditingController();

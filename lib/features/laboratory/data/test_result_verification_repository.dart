@@ -46,7 +46,6 @@ class TestResultVerificationRepository {
           }
         }
       } catch (_) {
-        // Fallback
       }
     }
     return null;
@@ -72,7 +71,6 @@ class TestResultVerificationRepository {
           return true;
         }
       } catch (_) {
-        // Fallback
       }
     }
     return false;
@@ -98,7 +96,6 @@ class TestResultVerificationRepository {
           return true;
         }
       } catch (_) {
-        // Fallback
       }
     }
     return false;

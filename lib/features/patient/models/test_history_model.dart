@@ -58,7 +58,7 @@ class TestHistoryDetail {
     final summary = TestHistorySummary.fromJson(
       json['summary'] as Map<String, dynamic>,
     );
-    // Defense in depth: never render values if the detail is withheld, even from a malformed response.
+
     return TestHistoryDetail(
       summary,
       summary.available

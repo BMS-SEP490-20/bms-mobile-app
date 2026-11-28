@@ -424,7 +424,6 @@ class PatientPortalApi {
     final userId = BmsAuth.currentUserId;
     final merged = <Map<String, dynamic>>[];
 
-    // 1. Test result notifications
     if (patientId.isNotEmpty) {
       try {
         final res = await _http.get(
@@ -452,7 +451,6 @@ class PatientPortalApi {
       } catch (_) {}
     }
 
-    // 2. Appointment notifications
     try {
       final res = await _http.get('/api/notifications/appointments');
       if (res.isSuccess) {
@@ -472,7 +470,6 @@ class PatientPortalApi {
       }
     } catch (_) {}
 
-    // 3. System / push inbox notifications
     if (userId.isNotEmpty) {
       try {
         final res = await _http.get(

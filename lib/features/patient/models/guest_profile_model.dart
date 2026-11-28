@@ -65,8 +65,8 @@ class PatientVitalsModel {
 /// Request payload for `POST /api/patients/guests` (Create Guest Profile).
 class CreateGuestProfileRequestModel {
   final String fullName;
-  final String dateOfBirth; // YYYY-MM-DD
-  final String gender; // Male, Female, Other
+  final String dateOfBirth;
+  final String gender;
   final String phoneNumber;
   final String? email;
   final String? identityNumber;

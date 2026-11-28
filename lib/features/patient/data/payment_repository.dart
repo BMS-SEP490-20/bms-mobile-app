@@ -47,7 +47,6 @@ class PaymentRepository {
           }
         }
       } catch (_) {
-        // Try fallback host
       }
     }
     return null;
@@ -72,7 +71,6 @@ class PaymentRepository {
           return jsonDecode(res.body);
         }
       } catch (_) {
-        // Try fallback host
       }
     }
     return null;
@@ -97,7 +95,6 @@ class PaymentRepository {
           }
         }
       } catch (_) {
-        // Try fallback host
       }
     }
     return null;

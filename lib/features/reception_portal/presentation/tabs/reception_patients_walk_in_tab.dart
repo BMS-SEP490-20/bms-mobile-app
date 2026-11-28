@@ -20,7 +20,6 @@ class _ReceptionPatientsWalkInTabState
 
   int _subTab = 0;
 
-  // Walk-in form controllers
   final TextEditingController _lookupCtrl = TextEditingController();
   final TextEditingController _fullNameCtrl = TextEditingController();
   final TextEditingController _phoneCtrl = TextEditingController();
@@ -35,7 +34,6 @@ class _ReceptionPatientsWalkInTabState
   bool _registering = false;
   Map<String, dynamic>? _registeredWalkIn;
 
-  // Directory state
   final TextEditingController _dirSearchCtrl = TextEditingController();
   bool? _isGuestFilter;
   List<Map<String, dynamic>> _patients = [];
