@@ -1,6 +1,6 @@
 class RegisterWalkInRequest {
   final String fullName;
-  final String dateOfBirth; // YYYY-MM-DD
+  final String dateOfBirth;
   final String gender;
   final String phone;
   final String identityNumber;
@@ -97,4 +97,3 @@ class PatientLookupResponse {
     );
   }
 }
-

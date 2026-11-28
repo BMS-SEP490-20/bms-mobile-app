@@ -503,7 +503,6 @@ class BmsAuth {
               .timeout(const Duration(seconds: 5));
           if (response.statusCode < 500) break;
         } catch (_) {
-          // Local session remains cleared even when the backend is unreachable.
         }
       }
     } finally {

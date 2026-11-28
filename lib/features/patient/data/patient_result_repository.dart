@@ -47,7 +47,6 @@ class PatientResultRepository {
           }
         }
       } catch (_) {
-        // Try fallback host
       }
     }
     return null;
@@ -69,7 +68,6 @@ class PatientResultRepository {
           return data['data'];
         }
       } catch (_) {
-        // Try fallback host
       }
     }
     return null;
@@ -91,7 +89,6 @@ class PatientResultRepository {
           return data['data'];
         }
       } catch (_) {
-        // Try fallback host
       }
     }
     return null;

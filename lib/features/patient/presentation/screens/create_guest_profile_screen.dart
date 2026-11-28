@@ -494,7 +494,7 @@ class _CreateGuestProfileScreenState extends State<CreateGuestProfileScreen> {
       ),
       body: Column(
         children: [
-          // Top Banner & Search Bar
+
           Container(
             color: Colors.white,
             padding: const EdgeInsets.fromLTRB(16, 12, 16, 14),
@@ -609,7 +609,6 @@ class _CreateGuestProfileScreenState extends State<CreateGuestProfileScreen> {
             ),
           ),
 
-          // Profiles List
           Expanded(
             child: _loading
                 ? const Center(child: CircularProgressIndicator())
@@ -834,7 +833,6 @@ class _CreateGuestProfileFormSheetState
   bool _submitting = false;
   String? _submitError;
 
-  // Live duplicate check state
   Timer? _dupTimer;
   List<PatientProfileModel> _duplicateCandidates = [];
 
@@ -1004,7 +1002,7 @@ class _CreateGuestProfileFormSheetState
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // Handle bar
+
               Center(
                 child: Container(
                   width: 44,
@@ -1091,7 +1089,6 @@ class _CreateGuestProfileFormSheetState
                   ),
                 ),
 
-              // Live Duplicate Warning Banner
               if (_duplicateCandidates.isNotEmpty)
                 Container(
                   padding: const EdgeInsets.all(12),
@@ -1156,7 +1153,6 @@ class _CreateGuestProfileFormSheetState
                   ),
                 ),
 
-              // 1. Full Name
               TextFormField(
                 controller: _fullNameCtrl,
                 decoration: _inputDeco(
@@ -1174,7 +1170,6 @@ class _CreateGuestProfileFormSheetState
               ),
               const SizedBox(height: 12),
 
-              // 2. Date of Birth & Gender
               Row(
                 children: [
                   Expanded(
@@ -1215,7 +1210,6 @@ class _CreateGuestProfileFormSheetState
               ),
               const SizedBox(height: 12),
 
-              // 3. Phone & CCCD
               Row(
                 children: [
                   Expanded(
@@ -1261,7 +1255,6 @@ class _CreateGuestProfileFormSheetState
               ),
               const SizedBox(height: 12),
 
-              // 4. Blood Type & Email
               Row(
                 children: [
                   Expanded(
@@ -1302,7 +1295,6 @@ class _CreateGuestProfileFormSheetState
               ),
               const SizedBox(height: 12),
 
-              // 5. Address
               TextFormField(
                 controller: _addressCtrl,
                 decoration: _inputDeco(
@@ -1313,7 +1305,6 @@ class _CreateGuestProfileFormSheetState
               ),
               const SizedBox(height: 12),
 
-              // 6. Emergency Contact
               Row(
                 children: [
                   Expanded(
@@ -1342,7 +1333,6 @@ class _CreateGuestProfileFormSheetState
               ),
               const SizedBox(height: 12),
 
-              // 7. Allergies & Medical History
               TextFormField(
                 controller: _allergiesCtrl,
                 decoration: _inputDeco(
@@ -1363,7 +1353,6 @@ class _CreateGuestProfileFormSheetState
               ),
               const SizedBox(height: 10),
 
-              // 8. Collapsible Vital Signs
               SwitchListTile(
                 contentPadding: EdgeInsets.zero,
                 title: const Text(

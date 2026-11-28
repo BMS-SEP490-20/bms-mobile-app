@@ -6,8 +6,8 @@ library;
 class BookAppointmentRequest {
   final String patientId;
   final String doctorId;
-  final String appointmentDate; // YYYY-MM-DD
-  final String slotTime; // HH:mm
+  final String appointmentDate;
+  final String slotTime;
   final List<String> packageIds;
   final String? notes;
   final String type;

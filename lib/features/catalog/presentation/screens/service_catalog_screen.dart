@@ -559,7 +559,6 @@ class _ServiceCatalogScreenState extends State<ServiceCatalogScreen> {
                         ),
                         const SizedBox(height: 16),
 
-                        // Specimen & Turnaround Metadata Cards
                         Row(
                           children: [
                             Expanded(
@@ -654,7 +653,6 @@ class _ServiceCatalogScreenState extends State<ServiceCatalogScreen> {
 
                         const SizedBox(height: 12),
 
-                        // Preparation Notes Alert
                         Container(
                           padding: const EdgeInsets.all(12),
                           decoration: BoxDecoration(
@@ -829,7 +827,6 @@ class _ServiceCatalogScreenState extends State<ServiceCatalogScreen> {
                     ),
                   ),
 
-                  // Bottom CTA bar
                   Container(
                     padding: const EdgeInsets.fromLTRB(16, 12, 16, 20),
                     decoration: const BoxDecoration(
@@ -938,7 +935,7 @@ class _ServiceCatalogScreenState extends State<ServiceCatalogScreen> {
       ),
       body: Column(
         children: [
-          // Search Bar & Filter Button Header
+
           Container(
             color: AppColors.primary,
             padding: const EdgeInsets.fromLTRB(16, 4, 16, 14),
@@ -1000,7 +997,6 @@ class _ServiceCatalogScreenState extends State<ServiceCatalogScreen> {
             ),
           ),
 
-          // Category Horizontal Filter Bar
           Container(
             color: Colors.white,
             height: 50,
@@ -1033,7 +1029,6 @@ class _ServiceCatalogScreenState extends State<ServiceCatalogScreen> {
             ),
           ),
 
-          // Active Filter Summary Bar
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             decoration: const BoxDecoration(
@@ -1067,7 +1062,6 @@ class _ServiceCatalogScreenState extends State<ServiceCatalogScreen> {
             ),
           ),
 
-          // Main Results List
           Expanded(
             child: _loading
                 ? const Center(child: CircularProgressIndicator())
@@ -1354,7 +1348,6 @@ class _ServiceCatalogScreenState extends State<ServiceCatalogScreen> {
                           ),
           ),
 
-          // Pagination Bar
           if (_totalPages > 1)
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),

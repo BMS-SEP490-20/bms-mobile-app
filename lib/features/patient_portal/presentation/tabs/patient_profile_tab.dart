@@ -250,7 +250,6 @@ class _PatientProfileTabState extends State<PatientProfileTab> {
           ),
           const SizedBox(height: 16),
 
-          // Demographics & Clinical Profile
           const BmsSectionHeader(title: 'Hồ sơ y tế lâm sàng'),
           const SizedBox(height: 8),
           BmsSoftCard(
@@ -816,7 +815,6 @@ class _EditMedicalProfileSheetState extends State<_EditMedicalProfileSheet> {
                 ),
                 const SizedBox(height: 16),
 
-                // 4x2 ABO/Rh Blood Type Selector
                 const Text(
                   'Nhóm máu hệ ABO / Rh *',
                   style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13.5),

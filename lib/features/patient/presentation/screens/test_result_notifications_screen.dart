@@ -106,11 +106,11 @@ class _TestResultNotificationsScreenState extends State<TestResultNotificationsS
 
   List<TestResultNotificationModel> get _filteredNotifications {
     switch (_tabController.index) {
-      case 1: // Khẩn cấp (Panic / Critical)
+      case 1:
         return _notifications.where((n) => n.isCriticalPanicValue).toList();
-      case 2: // Chưa đọc
+      case 2:
         return _notifications.where((n) => !n.isRead).toList();
-      default: // Tất cả
+      default:
         return _notifications;
     }
   }
@@ -202,7 +202,6 @@ class _TestResultNotificationsScreenState extends State<TestResultNotificationsS
             ),
             const SizedBox(height: 20),
 
-            // Emergency Banner if Panic
             if (item.isCriticalPanicValue) ...[
               Container(
                 width: double.infinity,
@@ -268,7 +267,6 @@ class _TestResultNotificationsScreenState extends State<TestResultNotificationsS
               const SizedBox(height: 16),
             ],
 
-            // Title & Channel
             Row(
               children: [
                 Expanded(
@@ -286,14 +284,12 @@ class _TestResultNotificationsScreenState extends State<TestResultNotificationsS
             ),
             const SizedBox(height: 8),
 
-            // Timestamp
             Text(
               'Gửi lúc: ${item.sentAt ?? item.createdAt}',
               style: TextStyle(color: Colors.grey.shade600, fontSize: 13),
             ),
             const Divider(height: 28),
 
-            // Message Body
             const Text(
               'Nội dung thông báo:',
               style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14, color: Color(0xFF1E293B)),
@@ -345,7 +341,7 @@ class _TestResultNotificationsScreenState extends State<TestResultNotificationsS
             ],
 
             const SizedBox(height: 16),
-            // Order and Specimen metadata
+
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
@@ -374,7 +370,6 @@ class _TestResultNotificationsScreenState extends State<TestResultNotificationsS
 
             const SizedBox(height: 24),
 
-            // Action Buttons
             Row(
               children: [
                 Expanded(
@@ -647,7 +642,7 @@ class _TestResultNotificationsScreenState extends State<TestResultNotificationsS
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Panic Emergency banner ribbon
+
             if (isPanic)
               Container(
                 width: double.infinity,
@@ -683,7 +678,7 @@ class _TestResultNotificationsScreenState extends State<TestResultNotificationsS
                   Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // Status Dot / Panic Icon
+
                       Container(
                         width: 38,
                         height: 38,
@@ -748,7 +743,6 @@ class _TestResultNotificationsScreenState extends State<TestResultNotificationsS
                     ],
                   ),
 
-                  // Critical Parameters Tags
                   if (item.criticalParameters.isNotEmpty) ...[
                     const SizedBox(height: 10),
                     Wrap(
@@ -792,7 +786,6 @@ class _TestResultNotificationsScreenState extends State<TestResultNotificationsS
                   const Divider(height: 1),
                   const SizedBox(height: 8),
 
-                  // Footer metadata & channel
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [

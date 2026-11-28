@@ -46,7 +46,6 @@ class _OtpPinFieldGroupState extends State<OtpPinFieldGroup>
       (_) => FocusNode(),
     );
 
-    // Initialize Shake Animation Controller
     _shakeController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 400),
@@ -64,7 +63,6 @@ class _OtpPinFieldGroupState extends State<OtpPinFieldGroup>
   void didUpdateWidget(covariant OtpPinFieldGroup oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (widget.hasError && !oldWidget.hasError) {
-      // Trigger heavy tactile haptic feedback and shake animation upon error
       HapticFeedback.heavyImpact();
       _shakeController.forward(from: 0.0);
     }
@@ -88,10 +86,8 @@ class _OtpPinFieldGroupState extends State<OtpPinFieldGroup>
 
   void _onDigitChanged(int index, String value) {
     if (value.isNotEmpty) {
-      // Light tactile haptic feedback on digit press
       HapticFeedback.lightImpact();
 
-      // If user pasted multiple characters
       if (value.length > 1) {
         final digits = value.replaceAll(RegExp(r'\D'), '');
         for (int i = 0; i < widget.length; i++) {
@@ -107,7 +103,6 @@ class _OtpPinFieldGroupState extends State<OtpPinFieldGroup>
         return;
       }
 
-      // Single digit entry: move focus to next box
       if (index < widget.length - 1) {
         _focusNodes[index + 1].requestFocus();
       } else {
@@ -128,7 +123,6 @@ class _OtpPinFieldGroupState extends State<OtpPinFieldGroup>
     return AnimatedBuilder(
       animation: _shakeAnimation,
       builder: (context, child) {
-        // Compute 4-cycle sine wave shake offset
         final offset = sin(_shakeAnimation.value * pi * 4) * 8.0;
         return Transform.translate(
           offset: Offset(offset, 0),
@@ -166,7 +160,7 @@ class _OtpPinFieldGroupState extends State<OtpPinFieldGroup>
               ],
             ),
             child: KeyboardListener(
-              focusNode: FocusNode(), // Auxiliary node capturing Backspace key on empty boxes
+              focusNode: FocusNode(),
               onKeyEvent: (event) {
                 if (event is KeyDownEvent &&
                     event.logicalKey == LogicalKeyboardKey.backspace) {

@@ -195,7 +195,7 @@ class _PatientDashboardTabState extends State<PatientDashboardTab> {
       child: ListView(
         padding: const EdgeInsets.fromLTRB(16, 16, 16, 28),
         children: [
-          // Top Greeting Card
+
           BmsSoftCard(
             child: Row(
               children: [
@@ -367,7 +367,6 @@ class _PatientDashboardTabState extends State<PatientDashboardTab> {
 
           const SizedBox(height: 14),
 
-          // 4 KPI Cards
           BmsKpiGrid(
             cards: [
               BmsKpiCard(
@@ -411,7 +410,6 @@ class _PatientDashboardTabState extends State<PatientDashboardTab> {
 
           const SizedBox(height: 18),
 
-          // Next Appointment & Instant QR Check-in Card
           BmsSectionHeader(
             title: 'Lịch hẹn & Check-in QR',
             trailing: TextButton(
@@ -481,7 +479,6 @@ class _PatientDashboardTabState extends State<PatientDashboardTab> {
 
           const SizedBox(height: 18),
 
-          // Active Sample Progress Card
           BmsSectionHeader(
             title: 'Tiến trình mẫu xét nghiệm',
             trailing: TextButton(
@@ -517,7 +514,6 @@ class _PatientDashboardTabState extends State<PatientDashboardTab> {
 
           const SizedBox(height: 18),
 
-          // Quick Actions
           const BmsSectionHeader(title: 'Tiện ích nhanh'),
           const SizedBox(height: 10),
           Row(

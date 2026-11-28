@@ -13,7 +13,7 @@ class QueueRepository {
       return [baseUrlOverride!];
     }
     return const [
-      apiBaseUrl, // http://localhost:5000
+      apiBaseUrl,
       'http://10.0.2.2:5000',
     ];
   }
